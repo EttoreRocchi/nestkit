@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nestkit"
+description = "Nested cross-validation toolkit with optional probability calibration, threshold optimization, and comprehensive diagnostics"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Ettore Rocchi"}]
+requires-python = ">=3.10"
+dynamic = ["version", "dependencies"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+plotting = ["matplotlib>=3.5", "seaborn>=0.12"]
+full = ["matplotlib>=3.5", "seaborn>=0.12", "shap>=0.42"]
+dev = [
+    "pytest>=7",
+    "pytest-cov",
+    "hypothesis>=6.0",
+    "ruff",
+    "pre-commit",
+]
+docs = [
+    "sphinx>=7.0",
+    "pydata-sphinx-theme>=0.14",
+    "sphinx-copybutton",
+    "myst-parser>=2.0",
+    "numpydoc",
+    "nbsphinx",
+    "ipykernel",
+    "sphinx-design",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "nestkit.__version__"}
+dependencies = {file = "requirements.txt"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 99
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B905",   # zip strict
+    "SIM108", # ternary operator
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["nestkit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
