@@ -56,6 +56,45 @@ class TestPostHocCalibrator:
         np.testing.assert_allclose(result.sum(axis=1), 1.0, atol=1e-10)
 
 
+class TestVennAbersDegenerate:
+    """Edge cases for Venn-ABERS calibration with degenerate data."""
+
+    def test_all_same_score(self):
+        """All calibration scores identical — should not crash."""
+        y_proba = np.full(20, 0.5)
+        y_true = np.tile([0, 1], 10)
+        cal = PostHocCalibrator("venn_abers")
+        cal.fit(y_proba, y_true)
+        result = cal.predict_proba(np.array([0.3, 0.5, 0.7]))
+        assert result.shape == (3, 2)
+        assert np.all(np.isfinite(result))
+        assert np.all(result >= 0) and np.all(result <= 1)
+
+    def test_all_same_label_positive(self):
+        """All labels are 1 — calibrated probabilities should be high."""
+        y_true = np.ones(15, dtype=int)
+        y_proba = np.linspace(0.3, 0.9, 15)
+        cal = PostHocCalibrator("venn_abers")
+        cal.fit(y_proba, y_true)
+        result = cal.predict_proba(np.array([0.5, 0.7]))
+        assert result.shape == (2, 2)
+        assert np.all(np.isfinite(result))
+        # With all positive labels, calibrated positive prob should be high
+        assert np.all(result[:, 1] > 0.5)
+
+    def test_all_same_label_negative(self):
+        """All labels are 0 — calibrated probabilities should be low."""
+        y_true = np.zeros(15, dtype=int)
+        y_proba = np.linspace(0.1, 0.8, 15)
+        cal = PostHocCalibrator("venn_abers")
+        cal.fit(y_proba, y_true)
+        result = cal.predict_proba(np.array([0.3, 0.6]))
+        assert result.shape == (2, 2)
+        assert np.all(np.isfinite(result))
+        # With all negative labels, calibrated positive prob should be low
+        assert np.all(result[:, 1] < 0.5)
+
+
 class TestCalibrationDiagnostics:
     def test_ece(self, binary_data):
         y_true, y_proba = binary_data

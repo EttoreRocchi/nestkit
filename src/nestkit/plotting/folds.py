@@ -145,7 +145,7 @@ def plot_score_stability(
     results,
     metrics: list[str] | None = None,
     point_alpha: float = 0.7,
-    ylim: tuple[float, float] | None = None,
+    xlim: tuple[float, float] | None = None,
     ax=None,
     **kwargs,
 ) -> Axes:
@@ -164,7 +164,7 @@ def plot_score_stability(
         ``outer_scores_default_`` are used.
     point_alpha : float, optional
         Opacity of individual fold score markers.
-    ylim : tuple of float or None, optional
+    xlim : tuple of float or None, optional
         Explicit x-axis limits (score axis).
     ax : matplotlib.axes.Axes or None, optional
         Axes to plot on. If ``None``, a new figure is created.
@@ -195,5 +195,5 @@ def plot_score_stability(
     ax.set_xlabel("Score")
     ax.set_title("Score Stability Across Folds")
     ax.invert_yaxis()
-    _apply_axis_limits(ax, xlim=ylim)
+    _apply_axis_limits(ax, xlim=xlim)
     return ax

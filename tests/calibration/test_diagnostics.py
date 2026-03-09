@@ -119,6 +119,43 @@ class TestCalibrationDiagnosticsExtended:
         assert list(df["stage"]) == ["raw", "calibrated"]
 
 
+class TestBrierDecompositionIdentity:
+    """Verify BS = Reliability - Resolution + Uncertainty across configurations."""
+
+    @pytest.mark.parametrize("n_bins", [5, 10, 20, 50])
+    def test_identity_uniform_bins(self, n_bins):
+        rng = np.random.RandomState(123)
+        y_true = rng.randint(0, 2, size=500)
+        y_proba = np.clip(y_true + rng.normal(0, 0.3, size=500), 0.01, 0.99)
+        bs = CalibrationDiagnostics.brier_score(y_true, y_proba)
+        decomp = CalibrationDiagnostics.brier_decomposition(
+            y_true, y_proba, n_bins=n_bins, strategy="uniform"
+        )
+        reconstructed = decomp["reliability"] - decomp["resolution"] + decomp["uncertainty"]
+        assert bs == pytest.approx(reconstructed, abs=0.02)
+
+    @pytest.mark.parametrize("n_bins", [10, 20, 50])
+    def test_identity_quantile_bins(self, n_bins):
+        rng = np.random.RandomState(456)
+        y_true = rng.randint(0, 2, size=500)
+        y_proba = np.clip(y_true + rng.normal(0, 0.25, size=500), 0.01, 0.99)
+        bs = CalibrationDiagnostics.brier_score(y_true, y_proba)
+        decomp = CalibrationDiagnostics.brier_decomposition(
+            y_true, y_proba, n_bins=n_bins, strategy="quantile"
+        )
+        reconstructed = decomp["reliability"] - decomp["resolution"] + decomp["uncertainty"]
+        assert bs == pytest.approx(reconstructed, abs=0.02)
+
+    def test_identity_perfect_predictions(self):
+        y_true = np.array([0, 0, 1, 1])
+        y_proba = np.array([0.0, 0.0, 1.0, 1.0])
+        bs = CalibrationDiagnostics.brier_score(y_true, y_proba)
+        decomp = CalibrationDiagnostics.brier_decomposition(y_true, y_proba, n_bins=2)
+        reconstructed = decomp["reliability"] - decomp["resolution"] + decomp["uncertainty"]
+        assert bs == pytest.approx(0.0)
+        assert reconstructed == pytest.approx(0.0, abs=0.01)
+
+
 class TestPostHocCalibratorExtended:
     def test_predict_before_fit_raises_runtime_error(self):
         cal = PostHocCalibrator("sigmoid")

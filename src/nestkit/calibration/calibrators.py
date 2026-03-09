@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
+from nestkit._constants import _EPS
 from nestkit._validation import extract_positive_proba
 
 logger = logging.getLogger("nestkit")
@@ -93,13 +94,13 @@ class PostHocCalibrator:
     # --- Sigmoid (logistic recalibration on probability logits) ---
 
     def _fit_sigmoid(self, p: np.ndarray, y: np.ndarray) -> None:
-        p_clipped = np.clip(p, 1e-7, 1 - 1e-7)
+        p_clipped = np.clip(p, _EPS, 1 - _EPS)
         logits = np.log(p_clipped / (1 - p_clipped))
         self._calibrator = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
         self._calibrator.fit(logits.reshape(-1, 1), y)
 
     def _predict_sigmoid(self, p: np.ndarray) -> np.ndarray:
-        p_clipped = np.clip(p, 1e-7, 1 - 1e-7)
+        p_clipped = np.clip(p, _EPS, 1 - _EPS)
         logits = np.log(p_clipped / (1 - p_clipped))
         return self._calibrator.predict_proba(logits.reshape(-1, 1))[:, 1]
 
@@ -117,15 +118,13 @@ class PostHocCalibrator:
     def _fit_beta(self, p: np.ndarray, y: np.ndarray) -> None:
         # 3-parameter beta calibration: logit(q) = a * log(p) + b * log(1-p) + c
         # Fit via logistic regression on log(p) and log(1-p)
-        eps = 1e-15
-        p_clipped = np.clip(p, eps, 1 - eps)
+        p_clipped = np.clip(p, _EPS, 1 - _EPS)
         features = np.column_stack([np.log(p_clipped), np.log(1 - p_clipped)])
         self._calibrator = LogisticRegression(C=1e10, solver="lbfgs", max_iter=1000)
         self._calibrator.fit(features, y)
 
     def _predict_beta(self, p: np.ndarray) -> np.ndarray:
-        eps = 1e-15
-        p_clipped = np.clip(p, eps, 1 - eps)
+        p_clipped = np.clip(p, _EPS, 1 - _EPS)
         features = np.column_stack([np.log(p_clipped), np.log(1 - p_clipped)])
         return self._calibrator.predict_proba(features)[:, 1]
 
@@ -145,7 +144,7 @@ class PostHocCalibrator:
             p0 = self._va_isotonic_with(score, 0)
             p1 = self._va_isotonic_with(score, 1)
             # Venn-ABERS midpoint
-            cal_probs[i] = p1 / (1 - p0 + p1 + 1e-15)
+            cal_probs[i] = p1 / (1 - p0 + p1 + _EPS)
 
         return cal_probs
 

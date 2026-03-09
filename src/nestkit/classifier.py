@@ -24,6 +24,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import check_cv
 
 from nestkit._base import _BaseNestedCV
+from nestkit._constants import _EPS
 from nestkit._validation import (
     extract_positive_proba,
     validate_calibration_method,
@@ -350,10 +351,10 @@ class NestedCVClassifier(_BaseNestedCV):
 
                 # Renormalize
                 row_sums = cal_probas_all.sum(axis=1, keepdims=True)
-                cal_probas_all /= row_sums + 1e-15
+                cal_probas_all /= row_sums + _EPS
                 for j in range(len(cal_probas_per_fold)):
                     rs = cal_probas_per_fold[j].sum(axis=1, keepdims=True)
-                    cal_probas_per_fold[j] /= rs + 1e-15
+                    cal_probas_per_fold[j] /= rs + _EPS
 
                 artifacts["calibrators_ovr"] = calibrators_ovr
 
@@ -486,7 +487,7 @@ class NestedCVClassifier(_BaseNestedCV):
             for c, cal_c in enumerate(artifacts["calibrators_ovr"]):
                 cal_proba[:, c] = cal_c.predict_proba(raw_proba[:, c])[:, 1]
             row_sums = cal_proba.sum(axis=1, keepdims=True)
-            return cal_proba / (row_sums + 1e-15)
+            return cal_proba / (row_sums + _EPS)
         return raw_proba
 
     def _compute_metrics(self, y_true, y_pred, y_proba, is_binary: bool) -> dict[str, float]:

@@ -180,10 +180,11 @@ class NestedCVRegressor(_BaseNestedCV):
         alpha = 1 - self.confidence_level
 
         # Finite-sample corrected quantile levels (conformal-style)
+        # Ref: Vovk et al., Algorithmic Learning in a Random World, 2005
         q_lo = alpha / 2
         q_hi = 1 - alpha / 2
         if n_cal > 0:
-            q_lo = max(0.0, np.ceil((alpha / 2) * (n_cal + 1)) / n_cal - 1 / n_cal)
+            q_lo = max(0.0, np.floor((alpha / 2) * (n_cal + 1)) / n_cal)
             q_hi = min(1.0, np.ceil((1 - alpha / 2) * (n_cal + 1)) / n_cal)
 
         artifacts["residual_quantiles"] = (

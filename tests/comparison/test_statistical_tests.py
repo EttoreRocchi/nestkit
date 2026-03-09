@@ -73,6 +73,33 @@ class TestNadeauBengioCorrectedTtest:
         assert result["n_folds"] == 2
         assert np.isfinite(result["p_value"])
 
+    def test_zero_variance_nonzero_mean(self):
+        """When all differences are identical and nonzero, t should be inf and p should be 0."""
+        a = np.array([0.9, 0.9, 0.9, 0.9, 0.9])
+        b = np.array([0.8, 0.8, 0.8, 0.8, 0.8])
+        result = nadeau_bengio_corrected_ttest(a, b, 800, 200)
+        assert result["t_statistic"] == np.inf
+        assert result["p_value"] == 0.0
+        assert result["significant_at_005"] is True
+        assert result["significant_at_001"] is True
+        assert result["mean_difference"] == pytest.approx(0.1)
+
+    def test_zero_variance_zero_mean(self):
+        """When all differences are zero, t should be 0 and p should be 1."""
+        a = np.array([0.85, 0.85, 0.85, 0.85])
+        result = nadeau_bengio_corrected_ttest(a, a, 800, 200)
+        assert result["t_statistic"] == 0.0
+        assert result["p_value"] == 1.0
+        assert result["significant_at_005"] is False
+
+    def test_zero_variance_negative_diff(self):
+        """Negative constant differences should give t = -inf."""
+        a = np.array([0.7, 0.7, 0.7])
+        b = np.array([0.9, 0.9, 0.9])
+        result = nadeau_bengio_corrected_ttest(a, b, 80, 20)
+        assert result["t_statistic"] == -np.inf
+        assert result["p_value"] == 0.0
+
     @given(
         a=arrays(float, shape=5, elements=st.floats(0, 1, allow_nan=False, allow_infinity=False)),
         b=arrays(float, shape=5, elements=st.floats(0, 1, allow_nan=False, allow_infinity=False)),

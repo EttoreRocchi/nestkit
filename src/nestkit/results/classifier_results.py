@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.metrics import classification_report
 
+from nestkit._constants import _EPS
 from nestkit.results._base import _BaseNestedCVResults
 from nestkit.thresholding.results import ThresholdResult
 
@@ -228,7 +229,7 @@ class ClassifierResults(_BaseNestedCVResults):
                 "std": float(np.std(self.thresholds_per_fold_, ddof=1)),
                 "cv": float(
                     np.std(self.thresholds_per_fold_, ddof=1)
-                    / (np.mean(self.thresholds_per_fold_) + 1e-12)
+                    / (np.mean(self.thresholds_per_fold_) + _EPS)
                 ),
                 "range": float(np.ptp(self.thresholds_per_fold_)),
             }

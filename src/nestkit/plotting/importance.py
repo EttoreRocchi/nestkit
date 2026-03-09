@@ -29,7 +29,7 @@ def plot_importance(
 
     Parameters
     ----------
-    aggregator : ImportanceAggregator
+    aggregator : FeatureImportanceAggregator
         Fitted importance aggregator with per-fold importance data.
     top_k : int, optional
         Number of top features to display.
@@ -96,7 +96,7 @@ def plot_rank_stability_features(
 
     Parameters
     ----------
-    aggregator : ImportanceAggregator
+    aggregator : FeatureImportanceAggregator
         Fitted importance aggregator with per-fold rank data.
     top_k : int, optional
         Number of top features to display.
@@ -147,7 +147,7 @@ def plot_shap_summary(aggregator, top_k: int = 20, ax=None, **kwargs) -> Axes:
 
     Parameters
     ----------
-    aggregator : ImportanceAggregator
+    aggregator : FeatureImportanceAggregator
         Fitted importance aggregator with raw SHAP values stored.
     top_k : int, optional
         Maximum number of features to display.
@@ -196,7 +196,7 @@ def plot_selection_frequency(
 
     Parameters
     ----------
-    aggregator : ImportanceAggregator
+    aggregator : FeatureImportanceAggregator
         Fitted importance aggregator with per-fold importance data.
     top_k : int, optional
         The top-*k* threshold used to count selection frequency.

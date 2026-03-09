@@ -44,6 +44,29 @@ class TestNogueiraStabilityIndex:
         result = nogueira_stability_index(M, top_k=top_k)
         assert -1.0 <= result <= 1.0 + 1e-10
 
+    def test_tied_importances(self):
+        """Many features with identical importance — result should still be valid."""
+        # All importances identical: argsort tie-breaks by index
+        M = np.ones((5, 10))
+        result = nogueira_stability_index(M, top_k=3)
+        assert -1.0 <= result <= 1.0 + 1e-10
+        assert np.isfinite(result)
+
+    def test_tied_importances_partial(self):
+        """Some features tied, others distinct."""
+        M = np.array(
+            [
+                [0.5, 0.5, 0.5, 0.1, 0.1],
+                [0.5, 0.5, 0.5, 0.1, 0.1],
+                [0.5, 0.5, 0.5, 0.1, 0.1],
+            ]
+        )
+        result = nogueira_stability_index(M, top_k=3)
+        assert -1.0 <= result <= 1.0 + 1e-10
+        assert np.isfinite(result)
+        # With identical data across folds, stability should be 1.0
+        assert result == pytest.approx(1.0)
+
     @given(
         data=arrays(
             float,

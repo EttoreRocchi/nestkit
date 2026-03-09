@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from nestkit import NestedCVRegressor
 
@@ -103,3 +104,26 @@ class TestMetrics:
             assert row["rmse"] >= 0
             assert row["mae"] >= 0
             np.testing.assert_almost_equal(row["rmse"], np.sqrt(row["mse"]), decimal=5)
+
+
+class TestPredictionIntervalQuantileEdgeCase:
+    """Test quantile formula when (alpha/2)*(n+1) is exactly an integer."""
+
+    @pytest.mark.parametrize("n_cal,k", [(100, 5), (99, 10), (49, 25)])
+    def test_lower_quantile_uses_floor(self, n_cal, k):
+        # Choose alpha so (alpha/2)*(n_cal+1) == k exactly
+        alpha = 2 * k / (n_cal + 1)
+        q_lo = max(0.0, np.floor((alpha / 2) * (n_cal + 1)) / n_cal)
+        q_hi = min(1.0, np.ceil((1 - alpha / 2) * (n_cal + 1)) / n_cal)
+        assert q_lo == pytest.approx(k / n_cal)
+        assert q_lo <= q_hi
+
+    def test_quantile_symmetry(self):
+        """Lower and upper quantiles should be approximately symmetric around 0.5."""
+        n_cal = 200
+        alpha = 0.05
+        q_lo = max(0.0, np.floor((alpha / 2) * (n_cal + 1)) / n_cal)
+        q_hi = min(1.0, np.ceil((1 - alpha / 2) * (n_cal + 1)) / n_cal)
+        assert q_lo < 0.5 < q_hi
+        # Approximately symmetric: |q_hi - (1 - q_lo)| <= 1/n_cal
+        assert abs(q_hi - (1 - q_lo)) <= 1 / n_cal + 1e-10

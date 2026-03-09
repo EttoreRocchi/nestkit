@@ -35,7 +35,7 @@ from nestkit.regressor import NestedCVRegressor
 from nestkit.results.classifier_results import ClassifierResults
 from nestkit.results.regressor_results import RegressorResults
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 logger = logging.getLogger("nestkit")
 logger.addHandler(logging.NullHandler())

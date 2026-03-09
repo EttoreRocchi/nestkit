@@ -14,6 +14,8 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
+from nestkit._constants import _EPS
+
 
 class HyperparameterStability:
     """Assess hyperparameter selection consistency across outer folds.
@@ -97,7 +99,7 @@ class HyperparameterStability:
 
             # Entropy
             probs = np.array(list(counts.values())) / self.n_folds
-            entropy = float(-np.sum(probs * np.log2(probs + 1e-15)))
+            entropy = float(-np.sum(probs * np.log2(probs + _EPS)))
 
             # CV for numeric params
             cv = np.nan

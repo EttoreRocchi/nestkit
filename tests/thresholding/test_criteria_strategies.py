@@ -50,6 +50,40 @@ class TestCriteria:
         assert score == pytest.approx(-1.0)
 
 
+class TestPrecisionAtRecallInfeasible:
+    """Edge case: no threshold achieves the required min_recall."""
+
+    def test_all_thresholds_infeasible_returns_minus_one(self):
+        """When a positive sample has prob < 0.01, no threshold in [0.01, 0.99] gives recall=1.0."""
+        criterion = precision_at_recall(min_recall=1.0)
+        y_true = np.array([0, 0, 0, 1, 1, 1])
+        # One positive has probability below the threshold grid minimum (0.01)
+        y_proba = np.array([0.1, 0.2, 0.3, 0.005, 0.7, 0.9])
+        # At threshold=0.5, recall = 2/3 < 1.0
+        score = criterion(y_true, y_proba, 0.5)
+        assert score == pytest.approx(-1.0)
+
+    def test_feasible_at_low_threshold(self):
+        """Recall=1.0 is achievable at a very low threshold."""
+        criterion = precision_at_recall(min_recall=1.0)
+        y_true = np.array([0, 0, 1, 1])
+        y_proba = np.array([0.1, 0.2, 0.6, 0.9])
+        # At threshold=0.5, all positives are captured
+        score = criterion(y_true, y_proba, 0.5)
+        assert score > 0  # Should return precision, not -1
+
+    def test_optimize_with_infeasible_recall(self):
+        """optimize_threshold should still return a valid threshold even if mostly infeasible."""
+        from nestkit.thresholding.strategies import optimize_threshold
+
+        criterion = precision_at_recall(min_recall=0.99)
+        y_true = np.array([0, 0, 0, 0, 1, 1, 1, 1, 1])
+        y_proba = np.array([0.1, 0.2, 0.3, 0.4, 0.02, 0.5, 0.6, 0.7, 0.8])
+        t, v = optimize_threshold(y_true, y_proba, criterion)
+        assert 0.01 <= t <= 0.99
+        assert isinstance(v, float)
+
+
 class TestStrategies:
     @pytest.fixture
     def fold_data(self):

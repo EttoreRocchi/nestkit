@@ -104,6 +104,20 @@ def nadeau_bengio_corrected_ttest(
     corrected_std = float(np.sqrt(corrected_var))
 
     if corrected_std == 0:
+        # When all fold differences are identical: if nonzero, evidence
+        # against H_0 is maximal; if zero, no difference exists.
+        if mean_diff != 0:
+            return {
+                "t_statistic": float(np.sign(mean_diff) * np.inf),
+                "p_value": 0.0,
+                "mean_difference": mean_diff,
+                "corrected_std": 0.0,
+                "ci_lower": mean_diff,
+                "ci_upper": mean_diff,
+                "n_folds": n,
+                "significant_at_005": True,
+                "significant_at_001": True,
+            }
         return {
             "t_statistic": 0.0,
             "p_value": 1.0,

@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import rankdata, spearmanr
 
+from nestkit._constants import _EPS
 from nestkit.importance.extractors import compute_shap_importance, extract_model_importance
 from nestkit.importance.stability import nogueira_stability_index
 from nestkit.results._base import _BaseNestedCVResults
@@ -163,7 +164,7 @@ class FeatureImportanceAggregator:
             if self.normalize:
                 abs_imp = np.abs(imp)
                 total = abs_imp.sum()
-                imp = abs_imp / (total + 1e-12)
+                imp = abs_imp / (total + _EPS)
 
             self.importances_per_fold_.append(imp)
 
@@ -189,7 +190,7 @@ class FeatureImportanceAggregator:
                 "min_importance": M.min(axis=0),
                 "max_importance": M.max(axis=0),
                 "cv_importance": (
-                    M.std(axis=0, ddof=1) / (M.mean(axis=0) + 1e-12)
+                    M.std(axis=0, ddof=1) / (M.mean(axis=0) + _EPS)
                     if n_folds > 1
                     else np.zeros(n_features)
                 ),
