@@ -11,7 +11,7 @@ folds.
 Result container
 ----------------
 
-.. autoclass:: nestkit.thresholding.results.ThresholdResult
+.. autoclass:: nestkit.thresholding.ThresholdResult
    :show-inheritance:
    :no-members:
 
@@ -20,13 +20,13 @@ Criteria functions
 
 Pre-built objective functions that can be passed to the threshold optimiser.
 
-.. autofunction:: nestkit.thresholding.criteria.youden_j
+.. autofunction:: nestkit.thresholding.youden_j
 
-.. autofunction:: nestkit.thresholding.criteria.f_beta_criterion
+.. autofunction:: nestkit.thresholding.f_beta_criterion
 
-.. autofunction:: nestkit.thresholding.criteria.cost_sensitive
+.. autofunction:: nestkit.thresholding.cost_sensitive
 
-.. autofunction:: nestkit.thresholding.criteria.balanced_accuracy_criterion
+.. autofunction:: nestkit.thresholding.balanced_accuracy_criterion
 
-.. autofunction:: nestkit.thresholding.criteria.precision_at_recall
+.. autofunction:: nestkit.thresholding.precision_at_recall
 

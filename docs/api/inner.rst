@@ -9,6 +9,6 @@ Utilities for inspecting the inner cross-validation loop.
 InnerCVReport
 -------------
 
-.. autoclass:: nestkit.inner.tuning_report.InnerCVReport
+.. autoclass:: nestkit.inner.InnerCVReport
    :members:
    :show-inheritance:

@@ -10,7 +10,7 @@ cross-validation procedure.
 HyperparameterStability
 -----------------------
 
-.. autoclass:: nestkit.diagnostics.stability.HyperparameterStability
+.. autoclass:: nestkit.diagnostics.HyperparameterStability
    :members:
    :show-inheritance:
 

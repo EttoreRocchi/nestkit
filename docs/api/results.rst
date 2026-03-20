@@ -10,21 +10,21 @@ including per-fold metrics, predictions, and fitted models.
 Classifier results
 ------------------
 
-.. autoclass:: nestkit.results.classifier_results.ClassifierOuterFoldResult
+.. autoclass:: nestkit.results.ClassifierOuterFoldResult
    :members:
    :show-inheritance:
 
-.. autoclass:: nestkit.results.classifier_results.ClassifierResults
+.. autoclass:: nestkit.ClassifierResults
    :members:
    :show-inheritance:
 
 Regressor results
 -----------------
 
-.. autoclass:: nestkit.results.regressor_results.RegressorOuterFoldResult
+.. autoclass:: nestkit.results.RegressorOuterFoldResult
    :members:
    :show-inheritance:
 
-.. autoclass:: nestkit.results.regressor_results.RegressorResults
+.. autoclass:: nestkit.RegressorResults
    :members:
    :show-inheritance:

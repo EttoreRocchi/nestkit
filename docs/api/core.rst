@@ -9,13 +9,13 @@ The two main entry points for running nested cross-validation in nestkit.
 Classifier
 ----------
 
-.. autoclass:: nestkit.classifier.NestedCVClassifier
+.. autoclass:: nestkit.NestedCVClassifier
    :members:
    :show-inheritance:
 
 Regressor
 ---------
 
-.. autoclass:: nestkit.regressor.NestedCVRegressor
+.. autoclass:: nestkit.NestedCVRegressor
    :members:
    :show-inheritance:

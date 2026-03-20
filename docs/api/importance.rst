@@ -10,7 +10,7 @@ scores across outer folds.
 FeatureImportanceAggregator
 ---------------------------
 
-.. autoclass:: nestkit.importance.aggregator.FeatureImportanceAggregator
+.. autoclass:: nestkit.importance.FeatureImportanceAggregator
    :members:
    :show-inheritance:
 

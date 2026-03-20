@@ -10,7 +10,7 @@ models, including corrected paired tests and multiple-comparison adjustments.
 NestedCVComparator
 ------------------
 
-.. autoclass:: nestkit.comparison.comparator.NestedCVComparator
+.. autoclass:: nestkit.comparison.NestedCVComparator
    :members:
    :show-inheritance:
 

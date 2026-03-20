@@ -10,13 +10,13 @@ calibration quality across outer folds.
 PostHocCalibrator
 -----------------
 
-.. autoclass:: nestkit.calibration.calibrators.PostHocCalibrator
+.. autoclass:: nestkit.calibration.PostHocCalibrator
    :members:
    :show-inheritance:
 
 CalibrationDiagnostics
 ----------------------
 
-.. autoclass:: nestkit.calibration.diagnostics.CalibrationDiagnostics
+.. autoclass:: nestkit.calibration.CalibrationDiagnostics
    :members:
    :show-inheritance:
