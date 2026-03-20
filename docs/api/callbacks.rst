@@ -7,8 +7,8 @@ Callbacks
 Callback hooks that plug into the nested cross-validation loop.
 
 .. autoclass:: nestkit.callbacks.FoldCallback
-   :members:
    :show-inheritance:
+   :no-members:
 
 .. autoclass:: nestkit.callbacks.ProgressCallback
    :members:

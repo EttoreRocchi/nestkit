@@ -25,19 +25,17 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx_copybutton",
-    "myst_parser",
     "numpydoc",
     "nbsphinx",
     "sphinx_design",
 ]
 
-templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown",
-}
+suppress_warnings = [
+    "ref.citation",  # numpydoc-generated citation labels
+]
+
 
 # -- Napoleon / numpydoc settings ----------------------------------------------
 
@@ -47,6 +45,8 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 
 numpydoc_show_class_members = False
+numpydoc_class_members_toctree = False
+numpydoc_attributes_as_param_list = False
 
 # -- Autodoc settings ----------------------------------------------------------
 
@@ -84,12 +84,6 @@ html_theme_options = {
     "logo": {
         "text": "nestkit",
     },
-    "announcement": (
-        "nestkit v0.1 is now available | "
-        "<code>pip install nestkit</code>"
-        '<button aria-label="Close" onclick="this.closest(\'.bd-header-announcement\').remove()" '
-        'class="announcement-close">&times;</button>'
-    ),
     "icon_links": [
         {
             "name": "GitHub",
@@ -110,8 +104,6 @@ html_theme_options = {
     "navbar_center": ["navbar-nav"],
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
 }
-
-html_css_files = ["custom.css"]
 
 # -- nbsphinx -----------------------------------------------------------------
 

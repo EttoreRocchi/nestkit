@@ -2,7 +2,7 @@ Changelog
 =========
 
 v0.1.1 (2026-03-09)
---------------
+--------------------
 
 - Standardize numerical epsilon constants across the codebase
 - Fix prediction interval lower-quantile edge case
@@ -10,7 +10,7 @@ v0.1.1 (2026-03-09)
 - Correct docstring parameter names and type references in plotting module
 
 v0.1.0 (2026-03-06)
---------------
+--------------------
 
 Initial release.
 

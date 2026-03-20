@@ -36,7 +36,6 @@ docs = [
     "sphinx>=7.0",
     "pydata-sphinx-theme>=0.14",
     "sphinx-copybutton",
-    "myst-parser>=2.0",
     "numpydoc",
     "nbsphinx",
     "ipykernel",

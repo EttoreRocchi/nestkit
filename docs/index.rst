@@ -71,6 +71,14 @@ evaluation pipeline.
       25+ visualizations: ROC curves, calibration diagrams,
       confusion matrices, critical difference diagrams, and more.
 
+   .. grid-item-card:: Tutorials
+      :text-align: center
+      :link: tutorials
+      :link-type: doc
+
+      Interactive Jupyter notebooks covering basic usage
+      and advanced workflows.
+
 Getting started
 ---------------
 
@@ -104,6 +112,7 @@ Getting started
 
    installation
    quickstart
+   tutorials
    architecture
    api/index
    changelog

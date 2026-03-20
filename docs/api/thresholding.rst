@@ -12,8 +12,8 @@ Result container
 ----------------
 
 .. autoclass:: nestkit.thresholding.results.ThresholdResult
-   :members:
    :show-inheritance:
+   :no-members:
 
 Criteria functions
 ------------------
