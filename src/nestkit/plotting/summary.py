@@ -78,10 +78,20 @@ def plot_confusion_matrices(
     if n == 1:
         axes = [axes]
 
+    labels = getattr(results, "classes_", None)
+    n_classes = cms[0].shape[0]
+    tick_labels = labels if labels is not None else list(range(n_classes))
+
     for i, cm in enumerate(cms):
         display = _normalize_cm(cm)
         axes[i].imshow(display, cmap=cmap, **kwargs)
         axes[i].set_title(f"Fold {i}")
+        axes[i].set_xticks(range(n_classes))
+        axes[i].set_xticklabels(tick_labels)
+        axes[i].set_yticks(range(n_classes))
+        axes[i].set_yticklabels(tick_labels)
+        axes[i].set_xlabel("Predicted")
+        axes[i].set_ylabel("True")
         for r in range(display.shape[0]):
             for c in range(display.shape[1]):
                 val = f"{display[r, c]:.2f}" if normalize else str(int(cm[r, c]))
@@ -90,6 +100,12 @@ def plot_confusion_matrices(
     display_agg = _normalize_cm(agg)
     axes[-1].imshow(display_agg, cmap=cmap, **kwargs)
     axes[-1].set_title("Aggregate")
+    axes[-1].set_xticks(range(n_classes))
+    axes[-1].set_xticklabels(tick_labels)
+    axes[-1].set_yticks(range(n_classes))
+    axes[-1].set_yticklabels(tick_labels)
+    axes[-1].set_xlabel("Predicted")
+    axes[-1].set_ylabel("True")
     for r in range(display_agg.shape[0]):
         for c in range(display_agg.shape[1]):
             val = f"{display_agg[r, c]:.2f}" if normalize else str(int(agg[r, c]))

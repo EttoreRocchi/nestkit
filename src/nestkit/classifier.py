@@ -293,7 +293,6 @@ class NestedCVClassifier(_BaseNestedCV):
             "oof_probas_raw": None,
             "oof_probas_calibrated": None,
             "oof_y_true": None,
-            "oof_calibration_diagnostics": None,
         }
 
         # Fast path
@@ -358,19 +357,6 @@ class NestedCVClassifier(_BaseNestedCV):
 
                 artifacts["calibrators_ovr"] = calibrators_ovr
 
-            # Calibration diagnostics (binary only for now)
-            if is_binary:
-                raw_p = extract_positive_proba(oof_probas_all)
-                cal_p = extract_positive_proba(cal_probas_all)
-                diag = CalibrationDiagnostics
-                artifacts["oof_calibration_diagnostics"] = {
-                    "ece_raw": diag.expected_calibration_error(oof_y_all, raw_p),
-                    "ece_calibrated": diag.expected_calibration_error(oof_y_all, cal_p),
-                    "mce_raw": diag.maximum_calibration_error(oof_y_all, raw_p),
-                    "mce_calibrated": diag.maximum_calibration_error(oof_y_all, cal_p),
-                    "brier_raw": diag.brier_score(oof_y_all, raw_p),
-                    "brier_calibrated": diag.brier_score(oof_y_all, cal_p),
-                }
         else:
             cal_probas_all = oof_probas_all
             cal_probas_per_fold = oof_probas
@@ -450,7 +436,22 @@ class NestedCVClassifier(_BaseNestedCV):
             "y_pred_optimized": None,
             "scores_optimized": None,
             "confusion_matrix_optimized": None,
+            "calibration_diagnostics": None,
         }
+
+        # Calibration diagnostics on held-out test data (binary only for now)
+        if has_calibration and is_binary:
+            raw_p = extract_positive_proba(raw_proba)
+            cal_p = extract_positive_proba(cal_proba)
+            diag = CalibrationDiagnostics
+            result["calibration_diagnostics"] = {
+                "ece_raw": diag.expected_calibration_error(y_test, raw_p),
+                "ece_calibrated": diag.expected_calibration_error(y_test, cal_p),
+                "mce_raw": diag.maximum_calibration_error(y_test, raw_p),
+                "mce_calibrated": diag.maximum_calibration_error(y_test, cal_p),
+                "brier_raw": diag.brier_score(y_test, raw_p),
+                "brier_calibrated": diag.brier_score(y_test, cal_p),
+            }
 
         # Optimized predictions
         has_threshold = (
@@ -552,7 +553,7 @@ class NestedCVClassifier(_BaseNestedCV):
             y_proba_calibrated=eval_result["y_proba_calibrated"],
             calibration_method=self.calibration_method,
             calibrator=artifacts.get("calibrator"),
-            oof_calibration_diagnostics=artifacts.get("oof_calibration_diagnostics"),
+            oof_calibration_diagnostics=eval_result.get("calibration_diagnostics"),
             y_pred_optimized=eval_result["y_pred_optimized"],
             outer_scores_optimized=eval_result["scores_optimized"],
             confusion_matrix_optimized=eval_result["confusion_matrix_optimized"],
