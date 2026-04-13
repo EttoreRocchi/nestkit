@@ -1,8 +1,11 @@
 """End-to-end tests for NestedCVClassifier."""
 
 import pandas as pd
+import pytest
 
 from nestkit import NestedCVClassifier
+
+pytestmark = pytest.mark.slow
 
 
 class TestBasicBinary:

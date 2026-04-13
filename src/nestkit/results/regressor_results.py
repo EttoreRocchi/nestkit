@@ -36,6 +36,9 @@ class RegressorOuterFoldResult:
     prediction_interval_upper: np.ndarray | None = None
     coverage: float | None = None
 
+    # Optional Mondrian conformal binning
+    mondrian_bin_assignments: np.ndarray | None = None
+
 
 class RegressorResults(_BaseNestedCVResults):
     """Aggregated nested CV results for regression."""
@@ -83,6 +86,9 @@ class RegressorResults(_BaseNestedCVResults):
                 fold_df["pi_lower"] = fr.prediction_interval_lower
                 fold_df["pi_upper"] = fr.prediction_interval_upper
 
+            if fr.mondrian_bin_assignments is not None:
+                fold_df["mondrian_bin"] = fr.mondrian_bin_assignments
+
             if self._original_index is not None:
                 fold_df.index = self._original_index[fr.test_indices]
             else:
@@ -97,7 +103,6 @@ class RegressorResults(_BaseNestedCVResults):
             row = {"fold_idx": fr.fold_idx, "best_inner_score": fr.best_inner_score}
             for metric, val in fr.outer_scores.items():
                 row[f"outer_{metric}"] = val
-                row[f"gap_{metric}"] = fr.best_inner_score - val
             rows.append(row)
         self.generalization_gap_ = pd.DataFrame(rows)
 
@@ -120,6 +125,45 @@ class RegressorResults(_BaseNestedCVResults):
             }
         else:
             self.prediction_interval_coverage_ = None
+
+        # Mondrian per-bin coverage
+        bin_assignments_list = [
+            fr.mondrian_bin_assignments
+            for fr in self.fold_results_
+            if fr.mondrian_bin_assignments is not None
+        ]
+        if bin_assignments_list:
+            all_bins = np.concatenate(bin_assignments_list)
+            all_y_true = np.concatenate(
+                [fr.y_true for fr in self.fold_results_ if fr.mondrian_bin_assignments is not None]
+            )
+            all_lower = np.concatenate(
+                [
+                    fr.prediction_interval_lower
+                    for fr in self.fold_results_
+                    if fr.mondrian_bin_assignments is not None
+                ]
+            )
+            all_upper = np.concatenate(
+                [
+                    fr.prediction_interval_upper
+                    for fr in self.fold_results_
+                    if fr.mondrian_bin_assignments is not None
+                ]
+            )
+            per_bin_coverage = {}
+            for b in np.unique(all_bins):
+                mask = all_bins == b
+                cov = float(
+                    np.mean(
+                        (all_y_true[mask] >= all_lower[mask])
+                        & (all_y_true[mask] <= all_upper[mask])
+                    )
+                )
+                per_bin_coverage[int(b)] = cov
+            self.mondrian_coverage_per_bin_ = per_bin_coverage
+        else:
+            self.mondrian_coverage_per_bin_ = None
 
 
 def _skewness(x: np.ndarray) -> float:

@@ -28,6 +28,7 @@ from nestkit._constants import _EPS
 from nestkit._validation import (
     extract_positive_proba,
     validate_calibration_method,
+    validate_conformal_params,
     validate_threshold_params,
 )
 from nestkit.calibration.calibrators import PostHocCalibrator
@@ -130,6 +131,14 @@ class NestedCVClassifier(_BaseNestedCV):
         ``inner_cv`` is an integer, a **new** splitter instance is
         created for the calibration OOF loop, which may produce
         different fold assignments than the inner hyperparameter search.
+    conformal_prediction : bool, default=False
+        If ``True``, compute CV+ Mondrian conformal prediction sets
+        using inner out-of-fold probabilities (calibrated if
+        calibration is enabled). Each outer fold gets its own per-class
+        q-hat threshold, applied to the held-out test fold.
+    conformal_alpha : float, default=0.1
+        Significance level (miscoverage rate) for conformal prediction.
+        Target coverage is ``1 - alpha``. Must be in ``(0, 1)``.
 
     Notes
     -----
@@ -207,6 +216,8 @@ class NestedCVClassifier(_BaseNestedCV):
         cost_matrix=None,
         min_recall=None,
         calibration_cv=None,
+        conformal_prediction=False,
+        conformal_alpha=0.1,
     ):
         super().__init__(
             estimator=estimator,
@@ -233,6 +244,8 @@ class NestedCVClassifier(_BaseNestedCV):
         self.cost_matrix = cost_matrix
         self.min_recall = min_recall
         self.calibration_cv = calibration_cv
+        self.conformal_prediction = conformal_prediction
+        self.conformal_alpha = conformal_alpha
 
     def fit(self, X, y, groups=None, **fit_params):
         """Run nested cross-validation with optional calibration and thresholding.
@@ -267,6 +280,7 @@ class NestedCVClassifier(_BaseNestedCV):
             self.cost_matrix,
             self.min_recall,
         )
+        validate_conformal_params(self.conformal_prediction, self.conformal_alpha)
         self.classes_ = np.unique(y)
         self.n_classes_ = len(self.classes_)
         return super().fit(X, y, groups=groups, **fit_params)
@@ -293,10 +307,15 @@ class NestedCVClassifier(_BaseNestedCV):
             "oof_probas_raw": None,
             "oof_probas_calibrated": None,
             "oof_y_true": None,
+            "conformal_result": None,
         }
 
         # Fast path
-        if self.calibration_method is None and self.threshold_strategy is None:
+        if (
+            self.calibration_method is None
+            and self.threshold_strategy is None
+            and not self.conformal_prediction
+        ):
             return artifacts
 
         # Slow path: collect inner OOF predictions (always refit)
@@ -401,6 +420,18 @@ class NestedCVClassifier(_BaseNestedCV):
                     thresholds_ovr.append(tr_c.optimal_threshold)
                 artifacts["optimal_thresholds_ovr"] = np.array(thresholds_ovr)
 
+        # --- Phase 2c: Conformal prediction ---
+        if self.conformal_prediction:
+            from nestkit.conformal.classifier_conformal import MondrianClassifierConformal
+
+            conformal_result = MondrianClassifierConformal.fit(
+                oof_probas=cal_probas_all,
+                oof_y_true=oof_y_all,
+                classes=self.classes_,
+                alpha=self.conformal_alpha,
+            )
+            artifacts["conformal_result"] = conformal_result
+
         return artifacts
 
     def _evaluate_outer_fold(self, estimator, X_test, y_test, artifacts) -> dict:
@@ -417,7 +448,7 @@ class NestedCVClassifier(_BaseNestedCV):
             effective_proba = extract_positive_proba(cal_proba)
             y_pred_default = (effective_proba >= 0.5).astype(int)
         else:
-            y_pred_default = np.argmax(cal_proba, axis=1)
+            y_pred_default = self.classes_[np.argmax(cal_proba, axis=1)]
 
         scores_default = self._compute_metrics(y_test, y_pred_default, cal_proba, is_binary)
         cm_default = confusion_matrix(y_test, y_pred_default)
@@ -466,16 +497,37 @@ class NestedCVClassifier(_BaseNestedCV):
                 thresholds = artifacts["optimal_thresholds_ovr"]
                 above = cal_proba >= thresholds[np.newaxis, :]
                 n_above = above.sum(axis=1)
-                y_pred_opt = np.where(
+                idx_opt = np.where(
                     n_above == 1,
                     np.argmax(above, axis=1),
                     np.argmax(cal_proba, axis=1),
                 )
+                y_pred_opt = self.classes_[idx_opt]
             result["y_pred_optimized"] = y_pred_opt
             result["scores_optimized"] = self._compute_metrics(
                 y_test, y_pred_opt, cal_proba, is_binary
             )
             result["confusion_matrix_optimized"] = confusion_matrix(y_test, y_pred_opt)
+
+        # Conformal prediction sets
+        if artifacts.get("conformal_result") is not None:
+            from nestkit.conformal.classifier_conformal import MondrianClassifierConformal
+
+            conformal_output = MondrianClassifierConformal.predict(
+                probas=cal_proba,
+                conformal_result=artifacts["conformal_result"],
+                classes=self.classes_,
+            )
+            result["conformal_prediction_sets"] = conformal_output["prediction_sets"]
+            result["conformal_set_sizes"] = conformal_output["set_sizes"]
+            result["conformal_coverage"] = float(
+                np.mean(
+                    [
+                        y_test[i] in conformal_output["prediction_sets"][i]
+                        for i in range(len(y_test))
+                    ]
+                )
+            )
 
         return result
 
@@ -558,4 +610,8 @@ class NestedCVClassifier(_BaseNestedCV):
             outer_scores_optimized=eval_result["scores_optimized"],
             confusion_matrix_optimized=eval_result["confusion_matrix_optimized"],
             threshold_result=artifacts.get("threshold_result"),
+            conformal_result=artifacts.get("conformal_result"),
+            conformal_prediction_sets=eval_result.get("conformal_prediction_sets"),
+            conformal_set_sizes=eval_result.get("conformal_set_sizes"),
+            conformal_coverage=eval_result.get("conformal_coverage"),
         )

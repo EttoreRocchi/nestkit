@@ -47,6 +47,17 @@ Thresholding
 
    thresholding.ThresholdResult
 
+Conformal prediction
+--------------------
+
+.. autosummary::
+   :nosignatures:
+
+   conformal.MondrianClassifierConformal
+   conformal.MondrianRegressorConformal
+   conformal.ClassifierConformalResult
+   conformal.RegressorConformalResult
+
 Model comparison
 ----------------
 
@@ -100,6 +111,7 @@ Sub-pages
    results
    calibration
    thresholding
+   conformal
    comparison
    diagnostics
    importance

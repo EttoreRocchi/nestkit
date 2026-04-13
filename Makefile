@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 .PHONY: help install install-docs lint format format-check pre-commit \
-        test docs docs-clean docs-serve clean publish publish-test
+        test test-fast test-cov docs docs-clean docs-serve clean publish publish-test
 
 # Colours
 BOLD  := \033[1m
@@ -42,6 +42,12 @@ pre-commit:  ## Run the full pre-commit suite on all files
 
 test:  ## Run tests
 	@pytest -v $(TESTS)/
+
+test-fast:  ## Run fast tests only (skip end-to-end)
+	@pytest -v -m "not slow" $(TESTS)/
+
+test-cov:  ## Run tests with coverage report
+	@pytest --cov=$(SRC) --cov-report=term-missing --cov-report=html $(TESTS)/
 
 # Documentation
 

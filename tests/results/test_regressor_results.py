@@ -181,6 +181,16 @@ class TestRegressorResults:
         assert "fold_idx" in gap.columns
         assert "best_inner_score" in gap.columns
 
+    def test_generalization_gap_no_cross_metric_columns(self):
+        """Gap should not subtract inner score from unrelated outer metrics."""
+        results = RegressorResults(n_outer_folds=3)
+        for i in range(3):
+            results.add_fold(_make_regressor_fold_result(i))
+        results.finalize()
+        gap = results.generalization_gap_
+        gap_cols = [c for c in gap.columns if c.startswith("gap_")]
+        assert gap_cols == [], f"Unexpected cross-metric gap columns: {gap_cols}"
+
     def test_residual_stats_keys(self):
         results = RegressorResults(n_outer_folds=3)
         for i in range(3):

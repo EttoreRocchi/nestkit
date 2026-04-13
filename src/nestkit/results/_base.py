@@ -149,7 +149,7 @@ class _BaseNestedCVResults(ABC):
         for col in scores_df.columns:
             vals = scores_df[col].values
             mean = np.mean(vals)
-            std = np.std(vals, ddof=1)
+            std = float(np.std(vals, ddof=1)) if n > 1 else 0.0
 
             # Nadeau-Bengio corrected CI (average fold sizes for unequal folds)
             if n > 1 and self.fold_results_:

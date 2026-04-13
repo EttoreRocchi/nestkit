@@ -45,7 +45,7 @@ class TestNogueiraStabilityIndex:
         assert -1.0 <= result <= 1.0 + 1e-10
 
     def test_tied_importances(self):
-        """Many features with identical importance — result should still be valid."""
+        """Many features with identical importance - result should still be valid."""
         # All importances identical: argsort tie-breaks by index
         M = np.ones((5, 10))
         result = nogueira_stability_index(M, top_k=3)

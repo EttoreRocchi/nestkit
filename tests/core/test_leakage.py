@@ -12,6 +12,8 @@ from sklearn.model_selection import GroupKFold
 
 from nestkit.classifier import NestedCVClassifier
 
+pytestmark = pytest.mark.slow
+
 
 def test_outer_test_never_in_inner():
     """Inner CV training indices must never overlap with outer test indices."""

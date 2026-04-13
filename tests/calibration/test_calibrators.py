@@ -60,7 +60,7 @@ class TestVennAbersDegenerate:
     """Edge cases for Venn-ABERS calibration with degenerate data."""
 
     def test_all_same_score(self):
-        """All calibration scores identical — should not crash."""
+        """All calibration scores identical - should not crash."""
         y_proba = np.full(20, 0.5)
         y_true = np.tile([0, 1], 10)
         cal = PostHocCalibrator("venn_abers")
@@ -71,7 +71,7 @@ class TestVennAbersDegenerate:
         assert np.all(result >= 0) and np.all(result <= 1)
 
     def test_all_same_label_positive(self):
-        """All labels are 1 — calibrated probabilities should be high."""
+        """All labels are 1 - calibrated probabilities should be high."""
         y_true = np.ones(15, dtype=int)
         y_proba = np.linspace(0.3, 0.9, 15)
         cal = PostHocCalibrator("venn_abers")
@@ -83,7 +83,7 @@ class TestVennAbersDegenerate:
         assert np.all(result[:, 1] > 0.5)
 
     def test_all_same_label_negative(self):
-        """All labels are 0 — calibrated probabilities should be low."""
+        """All labels are 0 - calibrated probabilities should be low."""
         y_true = np.zeros(15, dtype=int)
         y_proba = np.linspace(0.1, 0.8, 15)
         cal = PostHocCalibrator("venn_abers")

@@ -106,7 +106,11 @@ class HyperparameterStability:
             try:
                 numeric_vals = [float(v) for v in vals if v is not None]
                 if len(numeric_vals) == self.n_folds and np.mean(numeric_vals) != 0:
-                    cv = float(np.std(numeric_vals, ddof=1) / np.mean(numeric_vals))
+                    cv = (
+                        float(np.std(numeric_vals, ddof=1) / np.mean(numeric_vals))
+                        if self.n_folds > 1
+                        else 0.0
+                    )
             except (TypeError, ValueError):
                 pass
 

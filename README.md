@@ -27,12 +27,13 @@ Standard cross-validation conflates model selection with performance estimation,
 - **Nested cross-validation** for classification and regression with full scikit-learn API compatibility
 - **Post-hoc probability calibration**  -  Platt scaling, isotonic regression, beta calibration, and Venn-ABERS prediction
 - **Threshold optimization**  -  Youden's J, F-beta, cost-sensitive, balanced accuracy, and precision-at-recall criteria with pooled or fold-specific strategies
+- **CV+ Mondrian conformal prediction**  -  class-conditional prediction sets (classification) and Mondrian-binned conditional prediction intervals (regression) with formal coverage guarantees
 - **Statistical model comparison**  -  Nadeau-Bengio corrected t-test, Bayesian correlated t-test with ROPE, and Holm-Bonferroni multi-model correction
 - **Hyperparameter stability diagnostics**  -  selection frequency analysis, pairwise Jaccard similarity
 - **Feature importance aggregation**  -  cross-fold importance with Nogueira stability index and consensus feature selection
 - **Callback system**  -  progress tracking, logging, checkpointing, and custom hooks
 - **25+ plotting functions**  -  ROC curves, confusion matrices, calibration diagrams, threshold sensitivity, critical difference diagrams, and more
-- **Residual-based prediction intervals** for regression tasks
+- **Prediction intervals** for regression  -  global or Mondrian-binned conformal intervals
 
 ## Installation
 
@@ -92,6 +93,23 @@ ncv.fit(X, y)
 print(ncv.results_.threshold_comparison())
 ```
 
+With conformal prediction sets:
+
+```python
+ncv = NestedCVClassifier(
+    estimator=RandomForestClassifier(random_state=42),
+    param_grid={"n_estimators": [50, 100], "max_depth": [3, 5]},
+    outer_cv=5,
+    inner_cv=3,
+    calibration_method="isotonic",
+    conformal_prediction=True,
+    conformal_alpha=0.1,
+    random_state=42,
+)
+ncv.fit(X, y)
+print(ncv.results_.conformal_report())
+```
+
 ### Regression
 
 ```python
@@ -129,8 +147,8 @@ nestkit's nested CV procedure executes four phases per outer fold:
 
 | Class | Purpose |
 |-------|---------|
-| `NestedCVClassifier` | Classification with calibration + thresholding |
-| `NestedCVRegressor` | Regression with prediction intervals |
+| `NestedCVClassifier` | Classification with calibration, thresholding, and conformal prediction |
+| `NestedCVRegressor` | Regression with prediction intervals and Mondrian binning |
 | `ClassifierResults` / `RegressorResults` | Rich result containers |
 | `NestedCVComparator` | Statistical model comparison |
 | `FeatureImportanceAggregator` | Cross-fold importance analysis |
@@ -157,4 +175,4 @@ If you use nestkit in your research, please cite:
 
 ## License
 
-MIT  -  see [LICENSE](LICENSE) for details.
+MIT - see [LICENSE](LICENSE) for details.

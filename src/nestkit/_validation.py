@@ -75,6 +75,54 @@ def validate_calibration_method(method: str | None) -> None:
         raise ValueError(f"calibration_method must be one of {valid}, got '{method}'")
 
 
+def validate_conformal_params(
+    conformal_prediction: bool,
+    conformal_alpha: float,
+) -> None:
+    """Validate conformal prediction parameters.
+
+    Parameters
+    ----------
+    conformal_prediction : bool
+        Whether conformal prediction is enabled.
+    conformal_alpha : float
+        Significance level (miscoverage rate).
+
+    Raises
+    ------
+    ValueError
+        If ``conformal_alpha`` is not in ``(0, 1)``.
+    """
+    if conformal_prediction and not (0 < conformal_alpha < 1):
+        raise ValueError(f"conformal_alpha must be in (0, 1), got {conformal_alpha}")
+
+
+def validate_mondrian_params(
+    mondrian_bins: int | None,
+    mondrian_min_bin_size: int,
+) -> None:
+    """Validate Mondrian regression conformal parameters.
+
+    Parameters
+    ----------
+    mondrian_bins : int or None
+        Number of Mondrian bins. ``None`` disables Mondrian binning.
+    mondrian_min_bin_size : int
+        Minimum number of samples per bin before merging.
+
+    Raises
+    ------
+    ValueError
+        If ``mondrian_bins`` or ``mondrian_min_bin_size`` are invalid.
+    """
+    if mondrian_bins is not None and (not isinstance(mondrian_bins, int) or mondrian_bins < 1):
+        raise ValueError(f"mondrian_bins must be a positive integer, got {mondrian_bins}")
+    if not isinstance(mondrian_min_bin_size, int) or mondrian_min_bin_size < 1:
+        raise ValueError(
+            f"mondrian_min_bin_size must be a positive integer, got {mondrian_min_bin_size}"
+        )
+
+
 def ensure_2d_proba(y_proba: np.ndarray) -> np.ndarray:
     """Ensure probability array is 2D ``(n_samples, n_classes)``.
 

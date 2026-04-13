@@ -8,6 +8,8 @@ from sklearn.ensemble import RandomForestClassifier
 
 from nestkit.classifier import NestedCVClassifier
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def ncv():

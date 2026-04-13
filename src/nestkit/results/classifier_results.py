@@ -11,6 +11,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import classification_report
 
 from nestkit._constants import _EPS
+from nestkit.conformal.results import ClassifierConformalResult
 from nestkit.results._base import _BaseNestedCVResults
 from nestkit.thresholding.results import ThresholdResult
 
@@ -49,6 +50,12 @@ class ClassifierOuterFoldResult:
     confusion_matrix_optimized: np.ndarray | None = None
     threshold_result: ThresholdResult | None = None
 
+    # [OPT-CONFORMAL]
+    conformal_result: ClassifierConformalResult | None = None
+    conformal_prediction_sets: list[list[int]] | None = None
+    conformal_set_sizes: np.ndarray | None = None
+    conformal_coverage: float | None = None
+
 
 class ClassifierResults(_BaseNestedCVResults):
     """Aggregated nested CV results for classification."""
@@ -72,6 +79,12 @@ class ClassifierResults(_BaseNestedCVResults):
         if not self.fold_results_:
             return False
         return self.fold_results_[0].threshold_result is not None
+
+    @property
+    def has_conformal(self) -> bool:
+        if not self.fold_results_:
+            return False
+        return self.fold_results_[0].conformal_result is not None
 
     def finalize(self) -> None:
         if self._finalized:
@@ -115,6 +128,10 @@ class ClassifierResults(_BaseNestedCVResults):
         # Threshold attributes
         if self.has_threshold_optimization:
             self._compute_threshold_attributes()
+
+        # Conformal attributes
+        if self.has_conformal:
+            self._compute_conformal_attributes()
 
     def _compute_param_stability(self) -> None:
         if not self.best_params_per_fold_:
@@ -170,6 +187,13 @@ class ClassifierResults(_BaseNestedCVResults):
             if fr.y_pred_optimized is not None:
                 fold_df["y_pred_optimized"] = fr.y_pred_optimized
 
+            # Conformal prediction sets
+            if fr.conformal_set_sizes is not None:
+                fold_df["conformal_set_size"] = fr.conformal_set_sizes
+                fold_df["conformal_in_set"] = [
+                    fr.y_true[i] in fr.conformal_prediction_sets[i] for i in range(len(fr.y_true))
+                ]
+
             # Set original index if available
             if self._original_index is not None:
                 fold_df.index = self._original_index[fr.test_indices]
@@ -186,7 +210,6 @@ class ClassifierResults(_BaseNestedCVResults):
             row = {"fold_idx": fr.fold_idx, "best_inner_score": fr.best_inner_score}
             for metric, val in fr.outer_scores_default.items():
                 row[f"outer_{metric}"] = val
-                row[f"gap_{metric}"] = fr.best_inner_score - val
             rows.append(row)
         self.generalization_gap_ = pd.DataFrame(rows)
 
@@ -267,6 +290,80 @@ class ClassifierResults(_BaseNestedCVResults):
         if not self.has_calibration:
             raise ValueError("Calibration was not enabled for this run.")
         return self.calibration_summary_.copy()
+
+    def _compute_conformal_attributes(self) -> None:
+        coverages = [
+            fr.conformal_coverage for fr in self.fold_results_ if fr.conformal_coverage is not None
+        ]
+        set_sizes = [
+            fr.conformal_set_sizes
+            for fr in self.fold_results_
+            if fr.conformal_set_sizes is not None
+        ]
+
+        self.conformal_coverage_ = {
+            "mean": float(np.mean(coverages)),
+            "per_fold": coverages,
+        }
+
+        all_sizes = np.concatenate(set_sizes)
+        self.conformal_set_size_stats_ = {
+            "mean": float(np.mean(all_sizes)),
+            "median": float(np.median(all_sizes)),
+            "frac_singleton": float(np.mean(all_sizes == 1)),
+            "frac_empty": float(np.mean(all_sizes == 0)),
+            "frac_multi": float(np.mean(all_sizes > 1)),
+        }
+
+        qhats = np.array(
+            [
+                fr.conformal_result.qhat_per_class
+                for fr in self.fold_results_
+                if fr.conformal_result is not None
+            ]
+        )
+        self.conformal_qhat_per_fold_ = qhats
+        if qhats.shape[0] > 1:
+            self.conformal_qhat_stability_ = {
+                "mean_per_class": np.mean(qhats, axis=0).tolist(),
+                "std_per_class": np.std(qhats, axis=0, ddof=1).tolist(),
+            }
+        else:
+            self.conformal_qhat_stability_ = {
+                "mean_per_class": qhats[0].tolist(),
+                "std_per_class": [0.0] * qhats.shape[1],
+            }
+
+    def conformal_report(self) -> pd.DataFrame:
+        """Per-fold conformal coverage and set size statistics.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per outer fold with coverage, mean set size,
+            fraction of singleton and empty prediction sets.
+
+        Raises
+        ------
+        ValueError
+            If conformal prediction was not enabled.
+        """
+        if not self.has_conformal:
+            raise ValueError("Conformal prediction was not enabled for this run.")
+        rows = []
+        for fr in self.fold_results_:
+            if fr.conformal_coverage is not None:
+                sizes = fr.conformal_set_sizes
+                rows.append(
+                    {
+                        "fold_idx": fr.fold_idx,
+                        "coverage": fr.conformal_coverage,
+                        "mean_set_size": float(np.mean(sizes)),
+                        "frac_singleton": float(np.mean(sizes == 1)),
+                        "frac_empty": float(np.mean(sizes == 0)),
+                    }
+                )
+        return pd.DataFrame(rows)
 
     def classification_report_pooled(self, threshold: str = "default") -> str:
         """sklearn-style classification report on pooled OOF predictions."""

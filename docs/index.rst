@@ -53,6 +53,12 @@ evaluation pipeline.
       Decision-threshold optimization with Youden's J, F-beta, cost-sensitive,
       and precision-at-recall criteria.
 
+   .. grid-item-card:: Conformal Prediction
+      :text-align: center
+
+      CV+ Mondrian conformal prediction sets (classification) and
+      conditional prediction intervals (regression).
+
    .. grid-item-card:: Model Comparison
       :text-align: center
 

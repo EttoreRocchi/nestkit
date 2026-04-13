@@ -68,7 +68,15 @@ def optimize_threshold(
     True
     """
     p = extract_positive_proba(y_proba)
-    thresholds = np.linspace(0.01, 0.99, 991)
+    # Combine a fixed grid with data-adaptive midpoints between unique
+    # predicted probabilities.  This ensures extreme thresholds near 0 or 1
+    # are evaluated when the data warrants it (e.g., severe class imbalance).
+    grid = np.linspace(0.001, 0.999, 999)
+    unique_p = np.unique(p)
+    if len(unique_p) > 1:
+        midpoints = (unique_p[:-1] + unique_p[1:]) / 2
+        grid = np.unique(np.concatenate([grid, midpoints]))
+    thresholds = grid
     scores = np.array([criterion_fn(y_true, p, t) for t in thresholds])
     best_idx = np.argmax(scores)
     return float(thresholds[best_idx]), float(scores[best_idx])
@@ -119,7 +127,7 @@ def compute_threshold_sensitivity(
     optimize_threshold : Select the single best threshold.
     """
     p = extract_positive_proba(y_proba)
-    thresholds = np.linspace(0.01, 0.99, 991)
+    thresholds = np.linspace(0.001, 0.999, 999)
     rows = []
 
     for t in thresholds:

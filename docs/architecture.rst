@@ -31,6 +31,12 @@ For every outer fold, nestkit executes:
      - Threshold optimization
      - *(Classification, opt-in.)* Find the decision threshold that maximizes
        a chosen criterion on inner out-of-fold predictions.
+   * - 3b
+     - Conformal prediction
+     - *(Opt-in.)* Compute per-class conformal quantile thresholds
+       (classification) or per-bin residual quantiles (regression) from
+       inner out-of-fold predictions for coverage-guaranteed prediction
+       sets or intervals.
    * - 4
      - Refit & evaluate
      - Refit with the best hyperparameters on the full outer training fold,
@@ -86,6 +92,51 @@ Five built-in criteria: **Youden's J**, **F-beta**, **cost-sensitive**,
    )
    ncv.fit(X, y)
    print(ncv.results_.summary_optimized_)
+
+
+Conformal Prediction
+--------------------
+
+Traditional point predictions and calibrated probabilities do not quantify
+uncertainty with formal guarantees. **CV+ Mondrian conformal prediction**
+produces prediction sets (classification) or prediction intervals (regression)
+with finite-sample coverage guarantees.
+
+For **classification**, conformal prediction computes a per-class quantile
+threshold (q-hat) from inner OOF nonconformity scores. At test time, each
+class is included in the prediction set if its nonconformity score falls below
+its threshold. This is Mondrian (class-conditional), providing per-class
+coverage. With calibration enabled, conformal thresholds are computed from
+calibrated probabilities.
+
+For **regression**, Mondrian binning groups OOF predictions into equal-frequency
+bins and computes per-bin residual quantiles. This yields tighter intervals in
+easy-to-predict regions and wider intervals elsewhere.
+
+.. code-block:: python
+
+   # Classification: conformal prediction sets
+   ncv = NestedCVClassifier(
+       estimator=RandomForestClassifier(),
+       param_grid={...},
+       calibration_method="isotonic",
+       conformal_prediction=True,
+       conformal_alpha=0.1,  # 90% target coverage
+       ...
+   )
+   ncv.fit(X, y)
+   print(ncv.results_.conformal_report())
+
+   # Regression: Mondrian prediction intervals
+   ncv = NestedCVRegressor(
+       estimator=Ridge(),
+       param_grid={...},
+       prediction_intervals=True,
+       mondrian_bins=5,
+       ...
+   )
+   ncv.fit(X, y)
+   print(ncv.results_.mondrian_coverage_per_bin_)
 
 
 Model Comparison

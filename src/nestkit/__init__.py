@@ -23,6 +23,8 @@ Submodules
 - :mod:`nestkit.importance`  -  Cross-fold feature importance aggregation.
 - :mod:`nestkit.inner`  -  Inner CV tuning reports.
 - :mod:`nestkit.plotting`  -  25+ plotting functions for nested CV results.
+- :mod:`nestkit.conformal`  -  CV+ Mondrian conformal prediction sets and
+  intervals.
 - :mod:`nestkit.thresholding`  -  Decision-threshold optimization criteria.
 """
 
@@ -35,7 +37,7 @@ from nestkit.regressor import NestedCVRegressor
 from nestkit.results.classifier_results import ClassifierResults
 from nestkit.results.regressor_results import RegressorResults
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 logger = logging.getLogger("nestkit")
 logger.addHandler(logging.NullHandler())

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
 from sklearn.datasets import make_classification
 from sklearn.ensemble import RandomForestClassifier
 
 from nestkit.classifier import NestedCVClassifier
+
+pytestmark = pytest.mark.slow
 
 
 def test_single_param_config():

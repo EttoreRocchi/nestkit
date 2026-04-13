@@ -1,6 +1,18 @@
 Changelog
 =========
 
+v0.2.0 (2026-04-13)
+--------------------
+
+- Add CV+ Mondrian conformal prediction sets for classification (binary and multiclass)
+- Add Mondrian-binned conditional prediction intervals for regression
+- New ``conformal`` subpackage with ``MondrianClassifierConformal`` and ``MondrianRegressorConformal``
+- New ``NestedCVClassifier`` parameters: ``conformal_prediction``, ``conformal_alpha``
+- New ``NestedCVRegressor`` parameters: ``mondrian_bins``, ``mondrian_min_bin_size``
+- New ``ClassifierResults`` attributes: ``conformal_coverage_``, ``conformal_set_size_stats_``, ``conformal_qhat_per_fold_``, ``conformal_report()``
+- New ``RegressorResults`` attribute: ``mondrian_coverage_per_bin_``
+- Fix RuntimeWarning in single-fold summary statistics
+
 v0.1.1 (2026-03-09)
 --------------------
 

@@ -80,7 +80,7 @@ class TestPrecisionAtRecallInfeasible:
         y_true = np.array([0, 0, 0, 0, 1, 1, 1, 1, 1])
         y_proba = np.array([0.1, 0.2, 0.3, 0.4, 0.02, 0.5, 0.6, 0.7, 0.8])
         t, v = optimize_threshold(y_true, y_proba, criterion)
-        assert 0.01 <= t <= 0.99
+        assert 0.0 < t < 1.0
         assert isinstance(v, float)
 
 

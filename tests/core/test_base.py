@@ -9,6 +9,8 @@ from sklearn.utils.validation import check_is_fitted
 
 from nestkit import NestedCVClassifier
 
+pytestmark = pytest.mark.slow
+
 
 class TestGetSetParams:
     """Test sklearn-compatible get_params, set_params, and clone."""

@@ -24,7 +24,8 @@ classifiers = [
 
 [project.optional-dependencies]
 plotting = ["matplotlib>=3.5", "seaborn>=0.12"]
-full = ["matplotlib>=3.5", "seaborn>=0.12", "shap>=0.42"]
+bayesian = ["scikit-optimize>=0.9"]
+full = ["nestkit[plotting,bayesian]", "shap>=0.42"]
 dev = [
     "pytest>=7",
     "pytest-cov",
@@ -77,3 +78,6 @@ known-first-party = ["nestkit"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+markers = [
+    "slow: end-to-end tests that fit NestedCV estimators (deselect with '-m \"not slow\"')",
+]

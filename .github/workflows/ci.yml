@@ -30,4 +30,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev,full]"
-      - run: pytest --cov=nestkit --cov-report=term-missing -v
+      - run: pytest -m "not slow" -v

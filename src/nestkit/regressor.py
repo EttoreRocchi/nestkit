@@ -20,6 +20,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import check_cv
 
 from nestkit._base import _BaseNestedCV
+from nestkit._validation import validate_mondrian_params
 from nestkit.results.regressor_results import RegressorOuterFoldResult, RegressorResults
 
 logger = logging.getLogger("nestkit")
@@ -85,6 +86,16 @@ class NestedCVRegressor(_BaseNestedCV):
     confidence_level : float, default=0.95
         Confidence level for prediction intervals (e.g., 0.95 for 95%
         intervals). Only used when ``prediction_intervals=True``.
+    mondrian_bins : int or None, default=None
+        Number of Mondrian bins for conditional prediction intervals.
+        When set (and ``prediction_intervals=True``), OOF predictions
+        are grouped into equal-frequency bins and per-bin residual
+        quantiles are used instead of global quantiles. This yields
+        tighter intervals for easy-to-predict regions.
+    mondrian_min_bin_size : int, default=20
+        Minimum number of calibration samples per Mondrian bin.
+        Bins with fewer samples are merged with their nearest
+        neighbour.
 
     Examples
     --------
@@ -128,6 +139,8 @@ class NestedCVRegressor(_BaseNestedCV):
         pre_dispatch="2*n_jobs",
         prediction_intervals=False,
         confidence_level=0.95,
+        mondrian_bins=None,
+        mondrian_min_bin_size=20,
     ):
         super().__init__(
             estimator=estimator,
@@ -149,6 +162,30 @@ class NestedCVRegressor(_BaseNestedCV):
         )
         self.prediction_intervals = prediction_intervals
         self.confidence_level = confidence_level
+        self.mondrian_bins = mondrian_bins
+        self.mondrian_min_bin_size = mondrian_min_bin_size
+
+    def fit(self, X, y, groups=None, **fit_params):
+        """Run nested cross-validation with optional prediction intervals.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data.
+        y : array-like of shape (n_samples,)
+            Target values.
+        groups : array-like of shape (n_samples,) or None, default=None
+            Group labels for group-aware CV splitters.
+        **fit_params : dict
+            Additional keyword arguments forwarded to the estimator's
+            ``fit`` method.
+
+        Returns
+        -------
+        self
+        """
+        validate_mondrian_params(self.mondrian_bins, self.mondrian_min_bin_size)
+        return super().fit(X, y, groups=groups, **fit_params)
 
     def _build_results_container(self):
         return RegressorResults
@@ -157,40 +194,49 @@ class NestedCVRegressor(_BaseNestedCV):
         """Collect residuals for prediction intervals if enabled."""
         artifacts = {
             "residual_quantiles": None,
+            "mondrian_result": None,
         }
 
         if not self.prediction_intervals:
             return artifacts
 
-        # Collect inner OOF residuals for prediction intervals
+        # Collect inner OOF residuals and predictions
         cal_cv = check_cv(self.inner_cv, y_train, classifier=False)
         best_params = search.best_params_
         base_estimator = clone(self.estimator).set_params(**best_params)
 
         all_residuals = []
+        all_oof_preds = []
         for inner_train_idx, inner_val_idx in cal_cv.split(X_train, y_train, groups_train):
             est_j = clone(base_estimator)
             est_j.fit(X_train[inner_train_idx], y_train[inner_train_idx], **fit_params)
             preds = est_j.predict(X_train[inner_val_idx])
             residuals = y_train[inner_val_idx] - preds
             all_residuals.extend(residuals)
+            all_oof_preds.extend(preds)
 
         all_residuals = np.array(all_residuals)
-        n_cal = len(all_residuals)
+        all_oof_preds = np.array(all_oof_preds)
         alpha = 1 - self.confidence_level
 
-        # Finite-sample corrected quantile levels (conformal-style)
+        # Exact order-statistic residual quantiles (conformal-style)
         # Ref: Vovk et al., Algorithmic Learning in a Random World, 2005
-        q_lo = alpha / 2
-        q_hi = 1 - alpha / 2
-        if n_cal > 0:
-            q_lo = max(0.0, np.floor((alpha / 2) * (n_cal + 1)) / n_cal)
-            q_hi = min(1.0, np.ceil((1 - alpha / 2) * (n_cal + 1)) / n_cal)
+        from nestkit.conformal.regressor_conformal import _corrected_residual_quantiles
 
-        artifacts["residual_quantiles"] = (
-            float(np.quantile(all_residuals, q_lo)),
-            float(np.quantile(all_residuals, q_hi)),
-        )
+        artifacts["residual_quantiles"] = _corrected_residual_quantiles(all_residuals, alpha)
+
+        # Mondrian binning
+        if self.mondrian_bins is not None:
+            from nestkit.conformal.regressor_conformal import MondrianRegressorConformal
+
+            mondrian_result = MondrianRegressorConformal.fit(
+                oof_predictions=all_oof_preds,
+                oof_residuals=all_residuals,
+                alpha=alpha,
+                n_bins=self.mondrian_bins,
+                min_bin_size=self.mondrian_min_bin_size,
+            )
+            artifacts["mondrian_result"] = mondrian_result
 
         return artifacts
 
@@ -211,8 +257,20 @@ class NestedCVRegressor(_BaseNestedCV):
         y_pred_lower = None
         y_pred_upper = None
         coverage = None
+        bin_assignments = None
 
-        if artifacts.get("residual_quantiles") is not None:
+        if artifacts.get("mondrian_result") is not None:
+            from nestkit.conformal.regressor_conformal import MondrianRegressorConformal
+
+            mondrian_output = MondrianRegressorConformal.predict(
+                test_predictions=y_pred,
+                conformal_result=artifacts["mondrian_result"],
+            )
+            y_pred_lower = mondrian_output["lower"]
+            y_pred_upper = mondrian_output["upper"]
+            bin_assignments = mondrian_output["bin_assignments"]
+            coverage = float(np.mean((y_test >= y_pred_lower) & (y_test <= y_pred_upper)))
+        elif artifacts.get("residual_quantiles") is not None:
             q_lo, q_hi = artifacts["residual_quantiles"]
             y_pred_lower = y_pred + q_lo
             y_pred_upper = y_pred + q_hi
@@ -226,6 +284,7 @@ class NestedCVRegressor(_BaseNestedCV):
             "y_pred_lower": y_pred_lower,
             "y_pred_upper": y_pred_upper,
             "coverage": coverage,
+            "bin_assignments": bin_assignments,
         }
 
     def _build_fold_result(self, **kwargs):
@@ -249,4 +308,5 @@ class NestedCVRegressor(_BaseNestedCV):
             prediction_interval_lower=eval_result.get("y_pred_lower"),
             prediction_interval_upper=eval_result.get("y_pred_upper"),
             coverage=eval_result.get("coverage"),
+            mondrian_bin_assignments=eval_result.get("bin_assignments"),
         )

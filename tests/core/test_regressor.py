@@ -6,6 +6,8 @@ import pytest
 
 from nestkit import NestedCVRegressor
 
+pytestmark = pytest.mark.slow
+
 
 class TestBasicRegression:
     """Test basic regression with default settings."""
