@@ -387,5 +387,6 @@ def _compute_ibs(
     if time_range <= 0:
         return float(np.mean(brier_scores))
 
-    trapezoid = getattr(np, "trapezoid", np.trapz)
+    # ``trapz`` was renamed to ``trapezoid`` in NumPy 2.0 and later removed
+    trapezoid = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
     return float(trapezoid(brier_scores, eval_times) / time_range)
