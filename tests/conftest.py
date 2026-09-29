@@ -1,5 +1,6 @@
 """Shared fixtures for nestkit tests."""
 
+import numpy as np
 import pandas as pd
 import pytest
 from sklearn.datasets import make_classification, make_regression
@@ -71,3 +72,21 @@ def simple_classifier():
 def simple_regressor():
     """A small RandomForestRegressor for fast tests."""
     return RandomForestRegressor(random_state=42, n_estimators=10)
+
+
+@pytest.fixture
+def survival_data():
+    """Synthetic survival dataset: 200 samples, 10 features."""
+    rng = np.random.RandomState(42)
+    X = rng.randn(200, 10)
+    # True hazard depends on first 3 features
+    linear_pred = 0.5 * X[:, 0] - 0.3 * X[:, 1] + 0.2 * X[:, 2]
+    # Exponential survival times
+    baseline_hazard = 0.1
+    duration = rng.exponential(1.0 / (baseline_hazard * np.exp(linear_pred)))
+    # Random censoring
+    censoring_time = rng.exponential(scale=10.0, size=200)
+    event = (duration <= censoring_time).astype(np.float64)
+    duration = np.minimum(duration, censoring_time)
+    y = np.column_stack([event, duration])
+    return X, y

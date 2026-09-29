@@ -171,7 +171,9 @@ class NestedCVRegressor(_BaseNestedCV):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Training data.
+            Training data. May contain ``NaN`` if the estimator handles
+            them, e.g. a Pipeline starting with an imputer (see
+            :ref:`missing-values`).
         y : array-like of shape (n_samples,)
             Target values.
         groups : array-like of shape (n_samples,) or None, default=None

@@ -12,3 +12,4 @@ using Jupyter notebooks.
 
    01_basic_usage
    02_advanced_workflows
+   03_survival_analysis

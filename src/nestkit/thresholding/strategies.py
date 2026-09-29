@@ -25,6 +25,22 @@ from nestkit._validation import extract_positive_proba
 from nestkit.thresholding.results import ThresholdResult
 
 
+def _check_binary_encoding(y_true: np.ndarray) -> None:
+    """Reject targets that are not encoded as 0/1.
+
+    The criteria in :mod:`nestkit.thresholding.criteria` build confusion
+    matrices with ``labels=[0, 1]``.  Any other encoding produces an
+    all-zero matrix and a constant criterion value, so the optimizer would
+    return an arbitrary threshold without failing.
+    """
+    observed = np.unique(np.asarray(y_true))
+    if not np.all(np.isin(observed, [0, 1])):
+        raise ValueError(
+            "Threshold optimization needs y_true encoded as 0 (negative) and "
+            f"1 (positive), got labels {observed.tolist()}."
+        )
+
+
 def optimize_threshold(
     y_true: np.ndarray,
     y_proba: np.ndarray,
@@ -66,11 +82,14 @@ def optimize_threshold(
     ... )  # doctest: +SKIP
     >>> 0.4 < t < 0.6  # doctest: +SKIP
     True
+    Raises
+    ------
+    ValueError
+        If *y_true* holds labels other than 0 and 1.
+
     """
+    _check_binary_encoding(y_true)
     p = extract_positive_proba(y_proba)
-    # Combine a fixed grid with data-adaptive midpoints between unique
-    # predicted probabilities.  This ensures extreme thresholds near 0 or 1
-    # are evaluated when the data warrants it (e.g., severe class imbalance).
     grid = np.linspace(0.001, 0.999, 999)
     unique_p = np.unique(p)
     if len(unique_p) > 1:

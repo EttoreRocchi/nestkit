@@ -10,7 +10,10 @@ Python 3.10+ and the following packages (installed automatically):
 - numpy >= 1.22
 - pandas >= 1.4
 - joblib >= 1.2
-- scipy
+- scipy >= 1.9
+- jinja2 >= 3.0
+- matplotlib >= 3.10
+- seaborn >= 0.12
 
 Install from PyPI
 -----------------
@@ -24,10 +27,12 @@ Optional dependencies
 
 .. code-block:: bash
 
-   pip install nestkit[plotting]   # matplotlib + seaborn
-   pip install nestkit[full]       # plotting + SHAP
-   pip install nestkit[dev]        # testing + linting
-   pip install nestkit[docs]       # Sphinx documentation
+   pip install nestkit[survival]       # lifelines (survival analysis)
+   pip install nestkit[bayesian]       # scikit-optimize (Bayesian search)
+   pip install nestkit[explainability] # SHAP
+   pip install nestkit[full]           # all of the above
+   pip install nestkit[dev]            # testing + linting
+   pip install nestkit[docs]           # Sphinx documentation
 
 Install from source
 -------------------

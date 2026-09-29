@@ -8,6 +8,7 @@ aggregation.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 from abc import ABCMeta, abstractmethod
@@ -21,6 +22,13 @@ from sklearn.utils.validation import check_X_y
 from nestkit.inner.search import build_search
 
 logger = logging.getLogger("nestkit")
+
+# ``force_all_finite`` was renamed to ``ensure_all_finite`` in scikit-learn 1.6
+_ALLOW_NAN = (
+    {"ensure_all_finite": "allow-nan"}
+    if "ensure_all_finite" in inspect.signature(check_X_y).parameters
+    else {"force_all_finite": "allow-nan"}
+)
 
 
 class _BaseNestedCV(BaseEstimator, metaclass=ABCMeta):
@@ -176,7 +184,12 @@ class _BaseNestedCV(BaseEstimator, metaclass=ABCMeta):
         ----------
         X : array-like of shape (n_samples, n_features)
             Training data. If a pandas DataFrame is passed, feature names
-            and the original index are preserved in the results.
+            and the original index are preserved in the results. Missing
+            values encoded as ``NaN`` (or ``pd.NA``) are allowed, so that
+            imputation can be fitted inside each fold by making the
+            imputer the first step of a
+            :class:`~sklearn.pipeline.Pipeline` estimator. Infinite
+            values are rejected.
         y : array-like of shape (n_samples,)
             Target values.
         groups : array-like of shape (n_samples,) or None, default=None
@@ -195,18 +208,22 @@ class _BaseNestedCV(BaseEstimator, metaclass=ABCMeta):
         Raises
         ------
         ValueError
-            If ``X`` and ``y`` have incompatible shapes.
+            If ``X`` and ``y`` have incompatible shapes, if ``X`` contains
+            infinite values, or if ``y`` contains NaN or infinite values.
         """
         # DataFrame handling
         if hasattr(X, "columns"):
             self.feature_names_in_ = list(X.columns)
             self._original_index = X.index.copy()
-            X = X.to_numpy()
         else:
             self.feature_names_in_ = [f"feature_{i}" for i in range(X.shape[1])]
             self._original_index = None
 
-        X, y = check_X_y(X, y, multi_output=True, allow_nd=True)
+        # NaN is allowed in X so that imputation can be fitted inside the
+        # folds (e.g. as the first step of a Pipeline); inf and NaN in y are
+        # still rejected. DataFrames are converted here so that pandas
+        # nullable dtypes (pd.NA) become NaN.
+        X, y = check_X_y(X, y, multi_output=True, allow_nd=True, **_ALLOW_NAN)
 
         outer_cv = check_cv(self.outer_cv, y, classifier=is_classifier(self.estimator))
         splits = list(outer_cv.split(X, y, groups))

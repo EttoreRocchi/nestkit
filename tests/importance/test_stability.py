@@ -1,5 +1,7 @@
 """Tests for nestkit.importance.stability -- nogueira_stability_index."""
 
+import warnings
+
 import numpy as np
 import pytest
 from hypothesis import given, settings
@@ -44,13 +46,28 @@ class TestNogueiraStabilityIndex:
         result = nogueira_stability_index(M, top_k=top_k)
         assert -1.0 <= result <= 1.0 + 1e-10
 
-    def test_tied_importances(self):
-        """Many features with identical importance - result should still be valid."""
-        # All importances identical: argsort tie-breaks by index
+    def test_tied_importances_are_not_stability(self):
+        """Constant importances give an arbitrary top-k, not a stable one.
+
+        ``argsort`` breaks the ties by feature index, identically in every
+        fold, so the index used to report a perfect 1.0 for a model that
+        ranked nothing at all.
+        """
         M = np.ones((5, 10))
-        result = nogueira_stability_index(M, top_k=3)
-        assert -1.0 <= result <= 1.0 + 1e-10
-        assert np.isfinite(result)
+        with pytest.warns(UserWarning, match="constant feature importances"):
+            result = nogueira_stability_index(M, top_k=3)
+        assert np.isnan(result)
+
+    def test_tied_importances_reported_per_fold(self):
+        """The warning names the offending folds."""
+        M = np.array([[3.0, 2.0, 1.0], [1.0, 1.0, 1.0], [3.0, 1.0, 2.0]])
+        with pytest.warns(UserWarning, match=r"Fold\(s\) \[1\]"):
+            assert np.isnan(nogueira_stability_index(M, top_k=2))
+
+    def test_constant_importances_fine_when_all_selected(self):
+        """With top_k >= n_features every feature is selected regardless."""
+        M = np.ones((4, 3))
+        assert nogueira_stability_index(M, top_k=3) == 1.0
 
     def test_tied_importances_partial(self):
         """Some features tied, others distinct."""
@@ -77,5 +94,8 @@ class TestNogueiraStabilityIndex:
     @settings(max_examples=30)
     def test_stability_bounded(self, data):
         top_k = min(3, data.shape[1])
-        result = nogueira_stability_index(data, top_k=top_k)
-        assert -1.0 - 1e-10 <= result <= 1.0 + 1e-10
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            result = nogueira_stability_index(data, top_k=top_k)
+        # NaN is the documented answer when a fold has constant importances
+        assert np.isnan(result) or -1.0 - 1e-10 <= result <= 1.0 + 1e-10

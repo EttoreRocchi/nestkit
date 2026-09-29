@@ -23,9 +23,10 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-plotting = ["matplotlib>=3.5", "seaborn>=0.12"]
 bayesian = ["scikit-optimize>=0.9"]
-full = ["nestkit[plotting,bayesian]", "shap>=0.42"]
+survival = ["lifelines>=0.27"]
+explainability = ["shap>=0.42"]
+full = ["nestkit[bayesian,survival,explainability]"]
 dev = [
     "pytest>=7",
     "pytest-cov",
@@ -41,6 +42,7 @@ docs = [
     "nbsphinx",
     "ipykernel",
     "sphinx-design",
+    "myst-parser",
 ]
 
 [tool.setuptools.dynamic]
@@ -76,8 +78,10 @@ ignore = [
 known-first-party = ["nestkit"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-ra -q"
+# src is included so that --doctest-modules actually runs the docstring
+# examples; without it pytest would only collect from tests/.
+testpaths = ["tests", "src"]
+addopts = "-ra -q --doctest-modules"
 markers = [
     "slow: end-to-end tests that fit NestedCV estimators (deselect with '-m \"not slow\"')",
 ]

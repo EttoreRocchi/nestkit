@@ -253,7 +253,9 @@ class NestedCVClassifier(_BaseNestedCV):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Training data.
+            Training data. May contain ``NaN`` if the estimator handles
+            them, e.g. a Pipeline starting with an imputer (see
+            :ref:`missing-values`).
         y : array-like of shape (n_samples,)
             Target labels.
         groups : array-like of shape (n_samples,) or None, default=None
@@ -281,20 +283,25 @@ class NestedCVClassifier(_BaseNestedCV):
             self.min_recall,
         )
         validate_conformal_params(self.conformal_prediction, self.conformal_alpha)
-        self.classes_ = np.unique(y)
+
+        self.classes_, y_encoded = np.unique(y, return_inverse=True)
         self.n_classes_ = len(self.classes_)
-        return super().fit(X, y, groups=groups, **fit_params)
+        return super().fit(X, np.asarray(y_encoded).ravel(), groups=groups, **fit_params)
+
+    def _decode(self, y_encoded) -> np.ndarray:
+        """Map encoded labels (0..n_classes-1) back to the original labels."""
+        return self.classes_[np.asarray(y_encoded).astype(int)]
 
     def _build_results_container(self) -> type:
         return ClassifierResults
 
     def _post_inner_processing(self, search, X_train, y_train, groups_train, **fit_params) -> dict:
-        """Phase 2 + Phase 3: calibration and threshold optimization.
+        """Calibration and threshold optimization.
 
         Note: The OOF loop uses ``search.best_params_`` which were selected
         using all of ``X_train``. The OOF validation folds therefore
         influenced hyperparameter selection. This is a widely accepted
-        approximation -- the alternative (triple-nested CV) is
+        approximation - the alternative (triple-nested CV) is
         computationally prohibitive for most practical use cases.
         """
         artifacts: dict[str, Any] = {
@@ -318,7 +325,6 @@ class NestedCVClassifier(_BaseNestedCV):
         ):
             return artifacts
 
-        # Slow path: collect inner OOF predictions (always refit)
         cal_cv = check_cv(self.calibration_cv or self.inner_cv, y_train, classifier=True)
         best_params = search.best_params_
         base_estimator = clone(self.estimator).set_params(**best_params)
@@ -340,7 +346,6 @@ class NestedCVClassifier(_BaseNestedCV):
         n_classes = oof_probas_all.shape[1] if oof_probas_all.ndim == 2 else 2
         is_binary = n_classes == 2
 
-        # --- Phase 2: Calibration ---
         if self.calibration_method is not None:
             if is_binary:
                 calibrator = PostHocCalibrator(method=self.calibration_method)
@@ -357,7 +362,7 @@ class NestedCVClassifier(_BaseNestedCV):
                 cal_probas_per_fold = [np.zeros_like(p) for p in oof_probas]
 
                 for c in range(n_classes):
-                    y_binary = (oof_y_all == self.classes_[c]).astype(int)
+                    y_binary = (oof_y_all == c).astype(int)
                     p_c = oof_probas_all[:, c]
                     cal_c = PostHocCalibrator(method=self.calibration_method)
                     cal_c.fit(p_c, y_binary)
@@ -382,7 +387,6 @@ class NestedCVClassifier(_BaseNestedCV):
 
         artifacts["oof_probas_calibrated"] = cal_probas_all
 
-        # --- Phase 3: Threshold optimization ---
         if self.threshold_strategy is not None:
             criterion_fn = self._resolve_criterion()
             criterion_name = (
@@ -407,7 +411,7 @@ class NestedCVClassifier(_BaseNestedCV):
                 # Multiclass OVR: apply threshold strategy per class
                 thresholds_ovr = []
                 for c in range(n_classes):
-                    y_binary_per_fold = [(y == self.classes_[c]).astype(int) for y in oof_y_true]
+                    y_binary_per_fold = [(y == c).astype(int) for y in oof_y_true]
                     p_c_per_fold = [p[:, c] for p in cal_probas_per_fold]
                     if self.threshold_strategy == "fold_specific":
                         tr_c = FoldSpecificThreshold.optimize(
@@ -420,14 +424,13 @@ class NestedCVClassifier(_BaseNestedCV):
                     thresholds_ovr.append(tr_c.optimal_threshold)
                 artifacts["optimal_thresholds_ovr"] = np.array(thresholds_ovr)
 
-        # --- Phase 2c: Conformal prediction ---
         if self.conformal_prediction:
             from nestkit.conformal.classifier_conformal import MondrianClassifierConformal
 
             conformal_result = MondrianClassifierConformal.fit(
                 oof_probas=cal_probas_all,
                 oof_y_true=oof_y_all,
-                classes=self.classes_,
+                classes=np.arange(self.n_classes_),
                 alpha=self.conformal_alpha,
             )
             artifacts["conformal_result"] = conformal_result
@@ -448,7 +451,7 @@ class NestedCVClassifier(_BaseNestedCV):
             effective_proba = extract_positive_proba(cal_proba)
             y_pred_default = (effective_proba >= 0.5).astype(int)
         else:
-            y_pred_default = self.classes_[np.argmax(cal_proba, axis=1)]
+            y_pred_default = np.argmax(cal_proba, axis=1)
 
         scores_default = self._compute_metrics(y_test, y_pred_default, cal_proba, is_binary)
         cm_default = confusion_matrix(y_test, y_pred_default)
@@ -457,11 +460,13 @@ class NestedCVClassifier(_BaseNestedCV):
             artifacts["calibrator"] is not None or artifacts.get("calibrators_ovr") is not None
         )
 
+        y_true_labels = self._decode(y_test)
+
         result = {
-            "y_true": y_test,
+            "y_true": y_true_labels,
             "y_proba_raw": raw_proba,
             "y_proba_calibrated": cal_proba if has_calibration else None,
-            "y_pred_default": y_pred_default,
+            "y_pred_default": self._decode(y_pred_default),
             "scores_default": scores_default,
             "confusion_matrix_default": cm_default,
             "y_pred_optimized": None,
@@ -502,8 +507,8 @@ class NestedCVClassifier(_BaseNestedCV):
                     np.argmax(above, axis=1),
                     np.argmax(cal_proba, axis=1),
                 )
-                y_pred_opt = self.classes_[idx_opt]
-            result["y_pred_optimized"] = y_pred_opt
+                y_pred_opt = idx_opt
+            result["y_pred_optimized"] = self._decode(y_pred_opt)
             result["scores_optimized"] = self._compute_metrics(
                 y_test, y_pred_opt, cal_proba, is_binary
             )
@@ -523,8 +528,8 @@ class NestedCVClassifier(_BaseNestedCV):
             result["conformal_coverage"] = float(
                 np.mean(
                     [
-                        y_test[i] in conformal_output["prediction_sets"][i]
-                        for i in range(len(y_test))
+                        y_true_labels[i] in conformal_output["prediction_sets"][i]
+                        for i in range(len(y_true_labels))
                     ]
                 )
             )

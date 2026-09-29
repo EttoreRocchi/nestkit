@@ -39,29 +39,43 @@ class MondrianRegressorConformal:
             Number of equal-frequency bins for Mondrian conditioning.
         min_bin_size : int
             Minimum calibration samples per bin; smaller bins are merged.
+            The effective floor is raised to
+            :func:`min_calibration_size(alpha) <min_calibration_size>` when
+            that is larger, since a smaller bin cannot produce a finite
+            interval that reaches the target coverage.
 
         Returns
         -------
         RegressorConformalResult
+
+        Notes
+        -----
+        A bin holding fewer than ``min_calibration_size(alpha)`` residuals
+        has no valid two-sided order statistic, so bins are merged until
+        every one of them clears that floor.  With the default
+        ``alpha=0.05`` the floor is 39, not the nominal ``min_bin_size=20``:
+        a 20-point bin only reaches about 0.90 coverage against a 0.95
+        target.
         """
         n_cal = len(oof_predictions)
 
-        # Auto-reduce n_bins if insufficient data
-        max_bins = max(1, n_cal // min_bin_size)
+        effective_min = max(min_bin_size, min_calibration_size(alpha))
+
+        max_bins = max(1, n_cal // effective_min)
         if n_bins > max_bins:
             warnings.warn(
-                f"n_bins={n_bins} would give < {min_bin_size} samples per bin "
-                f"with {n_cal} calibration points; reducing to n_bins={max_bins}.",
+                f"n_bins={n_bins} would give < {effective_min} samples per bin "
+                f"with {n_cal} calibration points; reducing to n_bins={max_bins}. "
+                f"At alpha={alpha:g} a valid two-sided conformal interval needs "
+                f"at least {min_calibration_size(alpha)} residuals per bin.",
                 UserWarning,
                 stacklevel=2,
             )
             n_bins = max_bins
 
-        # Global fallback quantiles (exact order statistics, finite-sample corrected)
         fallback_quantiles = _corrected_residual_quantiles(oof_residuals, alpha)
 
         if n_bins == 1:
-            # Single bin = global conformal
             return RegressorConformalResult(
                 alpha=alpha,
                 n_bins=1,
@@ -71,22 +85,15 @@ class MondrianRegressorConformal:
                 fallback_quantiles=fallback_quantiles,
             )
 
-        # Equal-frequency bin edges from quantiles of OOF predictions
         quantile_fracs = np.linspace(0, 1, n_bins + 1)
         bin_edges = np.quantile(oof_predictions, quantile_fracs)
-        # Ensure extreme edges capture all data
         bin_edges[0] = -np.inf
         bin_edges[-1] = np.inf
 
-        # Assign calibration points to bins
         assignments = np.digitize(oof_predictions, bin_edges[1:-1], right=False)
-        # digitize returns 0..n_bins-1 with this setup
-
-        # Merge small bins with nearest neighbor
-        bin_edges, assignments = _merge_small_bins(bin_edges, assignments, n_bins, min_bin_size)
+        bin_edges, assignments = _merge_small_bins(bin_edges, assignments, n_bins, effective_min)
         final_n_bins = len(bin_edges) - 1
 
-        # Compute per-bin quantiles
         bin_quantiles = []
         bin_counts = np.empty(final_n_bins, dtype=int)
         for b in range(final_n_bins):
@@ -132,12 +139,12 @@ class MondrianRegressorConformal:
         edges = conformal_result.bin_edges
         n_bins = conformal_result.n_bins
 
-        # Assign to bins (clamp to valid range)
         assignments = np.digitize(test_predictions, edges[1:-1], right=False)
         assignments = np.clip(assignments, 0, n_bins - 1)
 
-        lower = np.empty_like(test_predictions)
-        upper = np.empty_like(test_predictions)
+        test_predictions = np.asarray(test_predictions, dtype=float)
+        lower = np.empty(test_predictions.shape[0], dtype=float)
+        upper = np.empty(test_predictions.shape[0], dtype=float)
 
         for b in range(n_bins):
             mask = assignments == b
@@ -154,40 +161,65 @@ class MondrianRegressorConformal:
         }
 
 
-def _corrected_quantile_levels(n: int, alpha: float) -> tuple[float, float]:
-    """Finite-sample corrected quantile levels for conformal intervals.
+def min_calibration_size(alpha: float) -> int:
+    """Smallest calibration set that supports a valid two-sided interval.
 
-    .. deprecated::
-        Prefer :func:`_corrected_residual_quantiles` which uses exact order
-        statistics instead of ``np.quantile`` interpolation.
+    A two-sided conformal interval at level ``alpha`` reads off the
+    ``floor((alpha/2)(n+1))``-th and ``ceil((1-alpha/2)(n+1))``-th order
+    statistics of the calibration residuals.  Both indices exist only when
+
+    .. math::
+
+        n \\ge \\frac{2 - \\alpha}{\\alpha}
+
+    which is 39 at the default ``alpha=0.05`` and 19 at ``alpha=0.1``.
+    Below that, at least one bound is unbounded and the interval cannot be
+    finite without losing the coverage guarantee.
+
+    Parameters
+    ----------
+    alpha : float
+        Significance level in ``(0, 1)``.
+
+    Returns
+    -------
+    int
+        Minimum number of calibration points per bin.
     """
-    if n == 0:
-        return 0.0, 1.0
-    q_lo = max(0.0, np.floor((alpha / 2) * (n + 1)) / n)
-    q_hi = min(1.0, np.ceil((1 - alpha / 2) * (n + 1)) / n)
-    return float(q_lo), float(q_hi)
+    return int(np.ceil((2.0 - alpha) / alpha))
 
 
 def _corrected_residual_quantiles(residuals: np.ndarray, alpha: float) -> tuple[float, float]:
     """Exact order-statistic residual quantiles with finite-sample correction.
 
-    Uses the same correction as :func:`_corrected_quantile_levels` but
-    returns exact order statistics from the sorted residual array instead
-    of relying on ``np.quantile`` interpolation.  This matches the approach
-    used in :class:`MondrianClassifierConformal` and is required for formal
-    conformal coverage guarantees.
+    Returns exact order statistics from the sorted residual array rather
+    than interpolating with ``np.quantile``.  This matches the approach used
+    in :class:`MondrianClassifierConformal` and is required for the formal
+    conformal coverage guarantee.  A bound that the sample cannot determine
+    is returned as ``-inf``/``inf`` instead of being clipped to the extreme
+    residual, which would silently undercover.
     """
     n = len(residuals)
     if n == 0:
-        return 0.0, 0.0
+        return -np.inf, np.inf
+
     sorted_resid = np.sort(residuals)
-    # Lower: floor-based index (conservative lower bound)
-    k_lo = int(np.floor((alpha / 2) * (n + 1))) - 1  # 0-indexed
-    k_lo = max(0, min(k_lo, n - 1))
-    # Upper: ceil-based index (conservative upper bound)
-    k_hi = int(np.ceil((1 - alpha / 2) * (n + 1))) - 1  # 0-indexed
-    k_hi = max(0, min(k_hi, n - 1))
-    return float(sorted_resid[k_lo]), float(sorted_resid[k_hi])
+    k_lo = int(np.floor((alpha / 2) * (n + 1)))
+    k_hi = int(np.ceil((1 - alpha / 2) * (n + 1)))
+
+    lo = -np.inf if k_lo < 1 else float(sorted_resid[k_lo - 1])
+    hi = np.inf if k_hi > n else float(sorted_resid[k_hi - 1])
+
+    if not np.isfinite(lo) or not np.isfinite(hi):
+        warnings.warn(
+            f"{n} calibration residuals are not enough for a finite two-sided "
+            f"conformal interval at alpha={alpha:g}, which needs at least "
+            f"{min_calibration_size(alpha)}. Returning an unbounded side rather "
+            "than a narrower interval that would not reach the target coverage.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return lo, hi
 
 
 def _merge_small_bins(
@@ -205,7 +237,6 @@ def _merge_small_bins(
         if len(small) == 0 or len(unique_bins) <= 1:
             break
 
-        # Pick the smallest bin
         victim = small[np.argmin(counts[small])]
         current_n_bins = len(unique_bins)
 
@@ -214,16 +245,11 @@ def _merge_small_bins(
         elif victim == current_n_bins - 1:
             merge_with = current_n_bins - 2
         else:
-            # Merge with the neighbour that has fewer samples (balance)
             merge_with = victim - 1 if counts[victim - 1] <= counts[victim + 1] else victim + 1
 
-        # Merge: absorb victim into merge_with
         lo, hi = sorted([victim, merge_with])
-        # Remove the interior edge between lo and hi
         bin_edges = np.delete(bin_edges, lo + 1)
-        # Reassign: anything in hi becomes lo
         assignments[assignments == hi] = lo
-        # Shift higher bin indices down
         assignments[assignments > hi] -= 1
 
     return bin_edges, assignments

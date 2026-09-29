@@ -1,8 +1,9 @@
 """Plotting functions for nested CV results.
 
-All functions require matplotlib and seaborn (install with
-``pip install nestkit[plotting]``). Each function accepts an optional
-``ax`` parameter; if ``None``, a new figure is created automatically.
+All functions require matplotlib and seaborn, which are core
+dependencies and installed with nestkit itself. Each function accepts an
+optional ``ax`` parameter; if ``None``, a new figure is created
+automatically.
 """
 
 from nestkit.plotting.calibration import plot_calibration_curves, plot_calibration_improvement

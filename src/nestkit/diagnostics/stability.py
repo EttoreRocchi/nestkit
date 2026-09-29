@@ -99,7 +99,7 @@ class HyperparameterStability:
 
             # Entropy
             probs = np.array(list(counts.values())) / self.n_folds
-            entropy = float(-np.sum(probs * np.log2(probs + _EPS)))
+            entropy = max(0.0, float(-np.sum(probs * np.log2(probs + _EPS))))
 
             # CV for numeric params
             cv = np.nan

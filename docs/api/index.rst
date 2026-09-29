@@ -18,6 +18,7 @@ Core estimators
 
    NestedCVClassifier
    NestedCVRegressor
+   NestedCVSurvival
 
 Result containers
 -----------------
@@ -27,8 +28,19 @@ Result containers
 
    ClassifierResults
    RegressorResults
+   SurvivalResults
    results.ClassifierOuterFoldResult
    results.RegressorOuterFoldResult
+   results.SurvivalOuterFoldResult
+
+Survival analysis
+-----------------
+
+.. autosummary::
+   :nosignatures:
+
+   survival.CoxPHWrapper
+   survival.make_survival_target
 
 Calibration
 -----------
@@ -109,6 +121,7 @@ Sub-pages
 
    core
    results
+   survival
    calibration
    thresholding
    conformal

@@ -44,6 +44,59 @@ With calibration and threshold optimization
    ncv.fit(X, y)
    print(ncv.results_.threshold_comparison())
 
+With missing values
+~~~~~~~~~~~~~~~~~~~
+
+``X`` may contain ``NaN``. Put the imputer inside a
+:class:`~sklearn.pipeline.Pipeline` so that it is fitted within each fold:
+
+.. code-block:: python
+
+   from sklearn.impute import SimpleImputer
+   from sklearn.pipeline import make_pipeline
+
+   ncv = NestedCVClassifier(
+       estimator=make_pipeline(
+           SimpleImputer(keep_empty_features=True),
+           RandomForestClassifier(random_state=42),
+       ),
+       param_grid={"randomforestclassifier__max_depth": [3, 5, 10]},
+       outer_cv=5,
+       inner_cv=3,
+       random_state=42,
+   )
+   ncv.fit(X, y)
+
+See :ref:`missing-values` for details.
+
+Survival Analysis
+-----------------
+
+.. code-block:: python
+
+   from nestkit import NestedCVSurvival
+   from nestkit.survival import CoxPHWrapper, make_survival_target
+   from lifelines.datasets import load_rossi
+
+   rossi = load_rossi()
+   X = rossi.drop(columns=["week", "arrest"])
+   y = make_survival_target(event=rossi["arrest"].values, duration=rossi["week"].values)
+
+   ncv = NestedCVSurvival(
+       estimator=CoxPHWrapper(),
+       param_grid={"penalizer": [0.001, 0.01, 0.1, 1.0]},
+       outer_cv=5,
+       inner_cv=3,
+       random_state=42,
+   )
+   ncv.fit(X, y)
+
+   results = ncv.results_
+   print(results.summary_default_)
+   print(results.coefficient_stability_)
+
+Install survival support with ``pip install nestkit[survival]``.
+
 Regression
 ----------
 

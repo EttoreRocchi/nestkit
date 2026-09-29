@@ -68,7 +68,7 @@ def youden_j(y_true: np.ndarray, y_proba: np.ndarray, threshold: float) -> float
     tn, fp, fn, tp = cm.ravel()
     sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
-    return sensitivity + specificity - 1.0
+    return float(sensitivity + specificity - 1.0)
 
 
 def f_beta_criterion(beta: float = 1.0):
@@ -116,7 +116,7 @@ def f_beta_criterion(beta: float = 1.0):
 
     def _criterion(y_true: np.ndarray, y_proba: np.ndarray, threshold: float) -> float:
         y_pred = (y_proba >= threshold).astype(int)
-        return fbeta_score(y_true, y_pred, beta=beta, zero_division=0.0)
+        return float(fbeta_score(y_true, y_pred, beta=beta, zero_division=0.0))
 
     _criterion.__name__ = f"f_{beta}"
     return _criterion
@@ -232,7 +232,7 @@ def balanced_accuracy_criterion(
     youden_j : Equivalent to ``2 * balanced_accuracy - 1``.
     """
     y_pred = (y_proba >= threshold).astype(int)
-    return balanced_accuracy_score(y_true, y_pred)
+    return float(balanced_accuracy_score(y_true, y_pred))
 
 
 def precision_at_recall(min_recall: float = 0.90):
@@ -282,7 +282,7 @@ def precision_at_recall(min_recall: float = 0.90):
         rec = recall_score(y_true, y_pred, zero_division=0.0)
         if rec < min_recall:
             return -1.0
-        return precision_score(y_true, y_pred, zero_division=0.0)
+        return float(precision_score(y_true, y_pred, zero_division=0.0))
 
     _criterion.__name__ = f"precision_at_recall_{min_recall}"
     return _criterion

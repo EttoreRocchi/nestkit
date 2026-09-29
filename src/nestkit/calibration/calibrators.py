@@ -42,9 +42,26 @@ class PostHocCalibrator:
         y_proba : array of shape (n_samples,) or (n_samples, 2)
             Uncalibrated predicted probabilities.
         y_true : array of shape (n_samples,)
-            True binary labels.
+            True binary labels, encoded as 0 (negative) and 1 (positive).
+
+        Raises
+        ------
+        ValueError
+            If *y_true* holds labels other than 0 and 1.  The isotonic and
+            Venn-ABERS fits regress directly onto the label values, so any
+            other encoding silently yields probabilities outside ``[0, 1]``
+            that are then clipped (e.g. labels ``{1, 2}`` map every sample
+            to 1.0).
         """
         p = extract_positive_proba(y_proba)
+        y_true = np.asarray(y_true)
+        observed = np.unique(y_true)
+        if not np.all(np.isin(observed, [0, 1])):
+            raise ValueError(
+                "y_true must be encoded as 0 (negative) and 1 (positive), "
+                f"got labels {observed.tolist()}. Encode the target first, "
+                "e.g. with sklearn.preprocessing.LabelEncoder."
+            )
 
         if self.method == "sigmoid":
             self._fit_sigmoid(p, y_true)

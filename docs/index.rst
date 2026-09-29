@@ -53,6 +53,12 @@ evaluation pipeline.
       Decision-threshold optimization with Youden's J, F-beta, cost-sensitive,
       and precision-at-recall criteria.
 
+   .. grid-item-card:: Survival Analysis
+      :text-align: center
+
+      Cox PH nested CV with Harrell's/Uno's concordance index,
+      integrated Brier score, and coefficient stability.
+
    .. grid-item-card:: Conformal Prediction
       :text-align: center
 

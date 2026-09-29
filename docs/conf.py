@@ -7,15 +7,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import nestkit
 
-# -- Project information -------------------------------------------------------
-
 project = "nestkit"
 author = "Ettore Rocchi"
 copyright = "2026, Ettore Rocchi"
 version = nestkit.__version__
 release = nestkit.__version__
-
-# -- General configuration -----------------------------------------------------
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -28,6 +24,7 @@ extensions = [
     "numpydoc",
     "nbsphinx",
     "sphinx_design",
+    "myst_parser",
 ]
 
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -35,9 +32,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 suppress_warnings = [
     "ref.citation",  # numpydoc-generated citation labels
 ]
-
-
-# -- Napoleon / numpydoc settings ----------------------------------------------
 
 napoleon_numpy_docstring = True
 napoleon_google_docstring = False
@@ -47,8 +41,6 @@ napoleon_use_rtype = True
 numpydoc_show_class_members = False
 numpydoc_class_members_toctree = False
 numpydoc_attributes_as_param_list = False
-
-# -- Autodoc settings ----------------------------------------------------------
 
 autodoc_default_options = {
     "members": True,
@@ -60,8 +52,6 @@ autodoc_member_order = "bysource"
 
 autosummary_generate = True
 
-# -- Intersphinx ---------------------------------------------------------------
-
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
@@ -70,8 +60,6 @@ intersphinx_mapping = {
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
 }
-
-# -- HTML output ---------------------------------------------------------------
 
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
@@ -104,7 +92,5 @@ html_theme_options = {
     "navbar_center": ["navbar-nav"],
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
 }
-
-# -- nbsphinx -----------------------------------------------------------------
 
 nbsphinx_execute = "never"

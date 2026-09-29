@@ -25,6 +25,7 @@ Standard cross-validation conflates model selection with performance estimation,
 ## Key Features
 
 - **Nested cross-validation** for classification and regression with full scikit-learn API compatibility
+- **Missing values**  -  `X` may contain `NaN`; an imputer placed in a `Pipeline` is refitted inside every inner and outer fold, so imputation is leakage-free
 - **Post-hoc probability calibration**  -  Platt scaling, isotonic regression, beta calibration, and Venn-ABERS prediction
 - **Threshold optimization**  -  Youden's J, F-beta, cost-sensitive, balanced accuracy, and precision-at-recall criteria with pooled or fold-specific strategies
 - **CV+ Mondrian conformal prediction**  -  class-conditional prediction sets (classification) and Mondrian-binned conditional prediction intervals (regression) with formal coverage guarantees
@@ -34,6 +35,7 @@ Standard cross-validation conflates model selection with performance estimation,
 - **Callback system**  -  progress tracking, logging, checkpointing, and custom hooks
 - **25+ plotting functions**  -  ROC curves, confusion matrices, calibration diagrams, threshold sensitivity, critical difference diagrams, and more
 - **Prediction intervals** for regression  -  global or Mondrian-binned conformal intervals
+- **Survival analysis**  -  nested CV for Cox PH models via lifelines with Harrell's and Uno's concordance indices, integrated Brier score, and coefficient stability analysis
 
 ## Installation
 
@@ -44,10 +46,12 @@ pip install nestkit
 Optional dependency groups:
 
 ```bash
-pip install nestkit[plotting]   # matplotlib + seaborn
-pip install nestkit[full]       # plotting + SHAP
-pip install nestkit[dev]        # testing + linting
-pip install nestkit[docs]       # Sphinx documentation
+pip install nestkit[survival]       # lifelines (survival analysis)
+pip install nestkit[bayesian]       # scikit-optimize (Bayesian search)
+pip install nestkit[explainability] # SHAP
+pip install nestkit[full]           # all of the above
+pip install nestkit[dev]            # testing + linting
+pip install nestkit[docs]           # Sphinx documentation
 ```
 
 ## Quick Start
@@ -110,6 +114,50 @@ ncv.fit(X, y)
 print(ncv.results_.conformal_report())
 ```
 
+With missing values (the imputer is fitted within each fold):
+
+```python
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import make_pipeline
+
+ncv = NestedCVClassifier(
+    estimator=make_pipeline(
+        SimpleImputer(keep_empty_features=True),
+        RandomForestClassifier(random_state=42),
+    ),
+    param_grid={"randomforestclassifier__max_depth": [3, 5, 10]},
+    outer_cv=5,
+    inner_cv=3,
+    random_state=42,
+)
+ncv.fit(X, y)  # X may contain NaN
+```
+
+### Survival Analysis
+
+```python
+from nestkit import NestedCVSurvival
+from nestkit.survival import CoxPHWrapper, make_survival_target
+from lifelines.datasets import load_rossi
+
+rossi = load_rossi()
+X = rossi.drop(columns=["week", "arrest"])
+y = make_survival_target(event=rossi["arrest"].values, duration=rossi["week"].values)
+
+ncv = NestedCVSurvival(
+    estimator=CoxPHWrapper(),
+    param_grid={"penalizer": [0.001, 0.01, 0.1, 1.0], "l1_ratio": [0.0, 0.5, 1.0]},
+    outer_cv=5,
+    inner_cv=3,
+    random_state=42,
+)
+ncv.fit(X, y)
+
+results = ncv.results_
+print(results.summary_default_)          # Harrell C-index, Uno C-index, IBS
+print(results.coefficient_stability_)    # hazard ratio stability across folds
+```
+
 ### Regression
 
 ```python
@@ -149,7 +197,9 @@ nestkit's nested CV procedure executes four phases per outer fold:
 |-------|---------|
 | `NestedCVClassifier` | Classification with calibration, thresholding, and conformal prediction |
 | `NestedCVRegressor` | Regression with prediction intervals and Mondrian binning |
-| `ClassifierResults` / `RegressorResults` | Rich result containers |
+| `NestedCVSurvival` | Survival analysis with Cox PH models (requires lifelines) |
+| `CoxPHWrapper` | sklearn-compatible wrapper for lifelines' `CoxPHFitter` |
+| `ClassifierResults` / `RegressorResults` / `SurvivalResults` | Rich result containers |
 | `NestedCVComparator` | Statistical model comparison |
 | `FeatureImportanceAggregator` | Cross-fold importance analysis |
 | `HyperparameterStability` | Selection consistency diagnostics |

@@ -47,7 +47,7 @@ test-fast:  ## Run fast tests only (skip end-to-end)
 	@pytest -v -m "not slow" $(TESTS)/
 
 test-cov:  ## Run tests with coverage report
-	@pytest --cov=$(SRC) --cov-report=term-missing --cov-report=html $(TESTS)/
+	@pytest -v --cov=$(SRC) --cov-report=term-missing --cov-report=html $(TESTS)/
 
 # Documentation
 

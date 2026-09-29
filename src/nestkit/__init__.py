@@ -26,6 +26,8 @@ Submodules
 - :mod:`nestkit.conformal`  -  CV+ Mondrian conformal prediction sets and
   intervals.
 - :mod:`nestkit.thresholding`  -  Decision-threshold optimization criteria.
+- :mod:`nestkit.survival`  -  Survival analysis with Cox PH models
+  (requires lifelines).
 """
 
 from __future__ import annotations
@@ -36,16 +38,22 @@ from nestkit.classifier import NestedCVClassifier
 from nestkit.regressor import NestedCVRegressor
 from nestkit.results.classifier_results import ClassifierResults
 from nestkit.results.regressor_results import RegressorResults
+from nestkit.results.survival_results import SurvivalResults
+from nestkit.survival import CoxPHWrapper, NestedCVSurvival, make_survival_target
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 logger = logging.getLogger("nestkit")
 logger.addHandler(logging.NullHandler())
 
 __all__ = [
     "ClassifierResults",
+    "CoxPHWrapper",
     "NestedCVClassifier",
     "NestedCVRegressor",
+    "NestedCVSurvival",
     "RegressorResults",
+    "SurvivalResults",
     "__version__",
+    "make_survival_target",
 ]

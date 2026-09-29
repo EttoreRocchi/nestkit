@@ -41,13 +41,25 @@ class TestFit:
         assert result.bin_edges[-1] == np.inf
 
     def test_auto_reduce_bins(self):
-        """When n_bins is too large for the data, it gets auto-reduced."""
+        """When n_bins is too large for the data, it gets auto-reduced.
+
+        At alpha=0.05 a bin needs 39 residuals, so 30 calibration points
+        support a single bin whatever min_bin_size says, and that one bin is
+        itself too small for a finite interval.
+        """
         rng = np.random.RandomState(0)
         preds = rng.uniform(0, 10, size=30)
         residuals = rng.normal(0, 1, size=30)
-        with pytest.warns(UserWarning, match="reducing to n_bins"):
+
+        with pytest.warns(UserWarning) as record:
             result = MondrianRegressorConformal.fit(preds, residuals, n_bins=10, min_bin_size=20)
-        assert result.n_bins == 1  # 30 / 20 = 1
+
+        messages = [str(w.message) for w in record]
+        assert any("reducing to n_bins" in m for m in messages)
+        assert any("not enough for a finite" in m for m in messages)
+
+        assert result.n_bins == 1
+        assert result.bin_quantiles[0] == (-np.inf, np.inf)
 
     def test_bin_counts_sum_to_n(self, regression_data):
         preds, residuals = regression_data
@@ -153,14 +165,19 @@ class TestExactOrderStatistics:
         assert q_hi == pytest.approx(expected_hi)
 
     def test_empty_residuals(self):
-        """Empty residuals should return (0.0, 0.0)."""
+        """Empty residuals carry no information, so neither bound is determined."""
         q_lo, q_hi = _corrected_residual_quantiles(np.array([]), 0.1)
-        assert q_lo == 0.0
-        assert q_hi == 0.0
+        assert q_lo == -np.inf
+        assert q_hi == np.inf
 
     def test_single_residual(self):
-        """Single residual: both quantiles should be that value."""
+        """One residual cannot support a 90% two-sided interval.
+
+        Returning that single value for both bounds would give a zero-width
+        interval and 0% coverage.
+        """
         residuals = np.array([3.14])
-        q_lo, q_hi = _corrected_residual_quantiles(residuals, 0.1)
-        assert q_lo == 3.14
-        assert q_hi == 3.14
+        with pytest.warns(UserWarning, match="not enough for a finite"):
+            q_lo, q_hi = _corrected_residual_quantiles(residuals, 0.1)
+        assert q_lo == -np.inf
+        assert q_hi == np.inf

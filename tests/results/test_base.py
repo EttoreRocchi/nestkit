@@ -149,3 +149,59 @@ class TestBaseNestedCVResults:
         assert results.feature_names_in_ == names
         d = results.to_dict()
         assert d["feature_names"] == names
+
+
+class TestSummaryWithMissingFoldValues:
+    """A metric that fails on some folds must not blank the whole summary row.
+
+    ``integrated_brier_score`` is skipped for a fold whose evaluation grid
+    cannot be built, which leaves a NaN in ``outer_scores_default_``.  A
+    non-nan-aware aggregation would turn the metric's mean, std, median and
+    IQR all into NaN and hide the folds that did succeed.
+    """
+
+    @staticmethod
+    def _results_with_partial_metric(values):
+        """Build results where ``flaky`` is absent on folds whose value is None."""
+        results = RegressorResults(n_outer_folds=len(values))
+        for i, val in enumerate(values):
+            fold = _make_fold(i)
+            fold.outer_scores = {"r2": 0.9 + i * 0.02}
+            if val is not None:
+                fold.outer_scores["flaky"] = val
+            results.add_fold(fold)
+        results.finalize()
+        return results
+
+    def test_metric_missing_on_one_fold_is_summarized_from_the_rest(self):
+        results = self._results_with_partial_metric([0.2, None, 0.4])
+        row = results.summary_default_.set_index("metric").loc["flaky"]
+
+        assert np.isclose(row["mean"], 0.3)
+        assert np.isclose(row["median"], 0.3)
+        assert not np.isnan(row["std"])
+        assert not np.isnan(row["ci_lower"])
+        assert not np.isnan(row["iqr"])
+
+    def test_other_metrics_are_unaffected(self):
+        results = self._results_with_partial_metric([0.2, None, 0.4])
+        row = results.summary_default_.set_index("metric").loc["r2"]
+        assert not np.isnan(row["mean"])
+
+    def test_single_valid_fold_has_zero_std(self):
+        results = self._results_with_partial_metric([None, 0.5, None])
+        row = results.summary_default_.set_index("metric").loc["flaky"]
+        assert np.isclose(row["mean"], 0.5)
+        assert row["std"] == 0.0
+        assert np.isclose(row["ci_lower"], 0.5)
+        assert np.isclose(row["ci_upper"], 0.5)
+
+    def test_metric_nan_on_every_fold_gives_all_nan_row(self):
+        """The column exists but holds no usable value on any fold."""
+        results = self._results_with_partial_metric([np.nan, np.nan, np.nan])
+        row = results.summary_default_.set_index("metric").loc["flaky"]
+        assert row.isna().all()
+
+    def test_absent_on_every_fold_yields_no_row(self):
+        results = self._results_with_partial_metric([None, None, None])
+        assert "flaky" not in results.summary_default_["metric"].values

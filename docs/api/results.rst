@@ -28,3 +28,14 @@ Regressor results
 .. autoclass:: nestkit.RegressorResults
    :members:
    :show-inheritance:
+
+Survival results
+----------------
+
+.. autoclass:: nestkit.results.SurvivalOuterFoldResult
+   :members:
+   :show-inheritance:
+
+.. autoclass:: nestkit.SurvivalResults
+   :members:
+   :show-inheritance:

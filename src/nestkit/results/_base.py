@@ -123,7 +123,11 @@ class _BaseNestedCVResults(ABC):
         -------
         pandas.DataFrame
             Summary table with columns ``metric``, ``mean``, ``std``,
-            ``ci_lower``, ``ci_upper``, ``median``, ``iqr``.
+            ``ci_lower``, ``ci_upper``, ``median``, ``iqr``.  Folds whose
+            value for a metric is ``NaN`` (i.e. the metric could not be
+            computed for that fold) are excluded from that metric's
+            statistics; a metric missing from every fold yields an
+            all-``NaN`` row.
 
         Notes
         -----
@@ -144,10 +148,26 @@ class _BaseNestedCVResults(ABC):
         .. [1] Nadeau, C. and Bengio, Y. (2003). "Inference for the
            Generalization Error." *Machine Learning*, 52(3), 239--281.
         """
-        n = len(scores_df)
         summary_rows = []
         for col in scores_df.columns:
-            vals = scores_df[col].values
+            # Folds where a metric could not be computed results in NaN.
+            vals = scores_df[col].dropna().to_numpy()
+            n = vals.shape[0]
+
+            if n == 0:
+                summary_rows.append(
+                    {
+                        "metric": col,
+                        "mean": np.nan,
+                        "std": np.nan,
+                        "ci_lower": np.nan,
+                        "ci_upper": np.nan,
+                        "median": np.nan,
+                        "iqr": np.nan,
+                    }
+                )
+                continue
+
             mean = np.mean(vals)
             std = float(np.std(vals, ddof=1)) if n > 1 else 0.0
 
@@ -186,7 +206,7 @@ class _BaseNestedCVResults(ABC):
 
         Examples
         --------
-        >>> results.finalize()
+        >>> results.finalize()  # doctest: +SKIP
         >>> d = results.to_dict()  # doctest: +SKIP
         >>> d["n_outer_folds"]  # doctest: +SKIP
         5

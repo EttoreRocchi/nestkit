@@ -92,9 +92,12 @@ def compute_shap_importance(
     Parameters
     ----------
     estimator : sklearn.base.BaseEstimator
-        A fitted estimator or Pipeline.
+        A fitted estimator or Pipeline. For a Pipeline, *X_test* is
+        passed through the preprocessing steps and the final step is
+        explained on the transformed data.
     X_test : numpy.ndarray
         Test-fold feature matrix, shape ``(n_samples, n_features)``.
+        May contain NaN if the Pipeline imputes them.
     shap_type : {"tree", "kernel", "linear", "auto"}, default="auto"
         Explainer backend to use.  ``"auto"`` selects ``TreeExplainer``
         for tree-based models, ``LinearExplainer`` for linear models,
@@ -133,6 +136,9 @@ def compute_shap_importance(
     ... )
     """
     import shap
+
+    if hasattr(estimator, "steps") and len(estimator.steps) > 1:
+        X_test = estimator[:-1].transform(X_test)
 
     est = _unwrap_pipeline(estimator)
     explainer_cls = _resolve_shap_explainer(est, shap_type)

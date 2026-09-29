@@ -56,7 +56,7 @@ def plot_comparison(
         scores = comparator._get_scores(name, metric, threshold)
         all_scores.append(scores)
 
-    ax.boxplot(all_scores, labels=models)
+    ax.boxplot(all_scores, tick_labels=models)
     for i, scores in enumerate(all_scores):
         ax.scatter(np.full(len(scores), i + 1), scores, alpha=point_alpha, zorder=3)
 

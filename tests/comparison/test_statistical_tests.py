@@ -226,3 +226,43 @@ class TestHolmBonferroniCorrection:
         corrected = holm_bonferroni_correction(pvals)
         for val in corrected:
             assert val <= 1.0 + 1e-10
+
+
+class TestTooFewFolds:
+    """A variance cannot be estimated from a single fold.
+
+    Both tests used to compute ``np.var(..., ddof=1)`` on one observation,
+    leak numpy's "Degrees of freedom <= 0" RuntimeWarning, and return NaN
+    dressed up as a result.
+    """
+
+    def test_corrected_ttest_rejects_single_fold(self):
+        with pytest.raises(ValueError, match="at least 2 folds"):
+            nadeau_bengio_corrected_ttest(np.array([0.9]), np.array([0.8]), 800, 200)
+
+    def test_bayesian_ttest_rejects_single_fold(self):
+        with pytest.raises(ValueError, match="at least 2 folds"):
+            bayesian_correlated_ttest(np.array([0.9]), np.array([0.8]), 800, 200)
+
+    def test_two_folds_still_work(self):
+        result = nadeau_bengio_corrected_ttest(
+            np.array([0.90, 0.88]), np.array([0.85, 0.84]), 800, 200
+        )
+        assert np.isfinite(result["p_value"])
+
+
+class TestHolmBonferroniDocumentedExample:
+    def test_matches_the_docstring(self):
+        """The docstring used to claim [0.03, 0.04, 0.06]."""
+        assert holm_bonferroni_correction([0.01, 0.04, 0.03]) == [0.03, 0.06, 0.06]
+
+    def test_matches_the_holm_formula(self):
+        rng = np.random.RandomState(0)
+        p_values = rng.uniform(0, 0.2, size=6).tolist()
+
+        order = np.argsort(p_values)
+        adjusted = np.minimum(1.0, np.array(p_values)[order] * (len(p_values) - np.arange(6)))
+        expected = np.empty(6)
+        expected[order] = np.maximum.accumulate(adjusted)
+
+        assert np.allclose(holm_bonferroni_correction(p_values), expected)

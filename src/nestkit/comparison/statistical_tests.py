@@ -95,17 +95,18 @@ def nadeau_bengio_corrected_ttest(
     """
     diffs = scores_a - scores_b
     n = len(diffs)
+    if n < 2:
+        raise ValueError(
+            f"The corrected t-test needs at least 2 folds to estimate a variance, got {n}."
+        )
     mean_diff = float(np.mean(diffs))
     var_diff = float(np.var(diffs, ddof=1))
 
-    # Nadeau-Bengio correction
     correction = (1.0 / n) + (n_test / n_train)
     corrected_var = correction * var_diff
     corrected_std = float(np.sqrt(corrected_var))
 
     if corrected_std == 0:
-        # When all fold differences are identical: if nonzero, evidence
-        # against H_0 is maximal; if zero, no difference exists.
         if mean_diff != 0:
             return {
                 "t_statistic": float(np.sign(mean_diff) * np.inf),
@@ -235,10 +236,15 @@ def bayesian_correlated_ttest(
     """
     diffs = scores_a - scores_b
     n = len(diffs)
+    if n < 2:
+        raise ValueError(
+            f"The Bayesian correlated t-test needs at least 2 folds to estimate a "
+            f"variance, got {n}."
+        )
     mean_diff = float(np.mean(diffs))
     std_diff = float(np.std(diffs, ddof=1))
 
-    if std_diff == 0 or n < 2:
+    if std_diff == 0:
         if abs(mean_diff) <= rope:
             return {
                 "p_a_better": 0.0,
@@ -323,7 +329,7 @@ def holm_bonferroni_correction(p_values: list[float]) -> list[float]:
     Examples
     --------
     >>> holm_bonferroni_correction([0.01, 0.04, 0.03])
-    [0.03, 0.04, 0.06]
+    [0.03, 0.06, 0.06]
     """
     n = len(p_values)
     sorted_indices = np.argsort(p_values)

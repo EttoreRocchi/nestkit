@@ -13,6 +13,8 @@ References
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 
@@ -83,6 +85,18 @@ def nogueira_stability_index(
 
     if n_folds < 2:
         return 1.0
+
+    if top_k < n_features:
+        constant = [i for i in range(n_folds) if np.ptp(importances_matrix[i]) == 0]
+        if constant:
+            warnings.warn(
+                f"Fold(s) {constant} have constant feature importances, so their "
+                "top-k selection is arbitrary and the stability index is not "
+                "meaningful. Returning NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return float("nan")
 
     # Binary selection matrix
     selections = np.zeros((n_folds, n_features), dtype=int)

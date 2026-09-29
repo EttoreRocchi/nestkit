@@ -123,6 +123,61 @@ def validate_mondrian_params(
         )
 
 
+def validate_survival_target(y: np.ndarray) -> None:
+    """Validate a normalized survival target array.
+
+    Parameters
+    ----------
+    y : ndarray of shape (n_samples, 2)
+        Survival target with columns ``[event, duration]``.
+        Must already be normalized via
+        :func:`~nestkit.survival._target._normalize_survival_target`.
+
+    Raises
+    ------
+    ValueError
+        If the target does not have the expected shape or content.
+
+    Warns
+    -----
+    UserWarning
+        If the censoring rate is extremely high (>95%) or
+        extremely low (<5%).
+    """
+    import warnings
+
+    if y.ndim != 2 or y.shape[1] != 2:
+        raise ValueError(f"Survival target must have shape (n_samples, 2), got {y.shape}")
+
+    event = y[:, 0]
+    duration = y[:, 1]
+
+    unique_events = np.unique(event)
+    if not np.all(np.isin(unique_events, [0.0, 1.0])):
+        raise ValueError(
+            f"Event column must be binary (0 or 1), got unique values {unique_events}"
+        )
+
+    if np.any(duration <= 0):
+        raise ValueError("Duration column must contain only positive values")
+
+    censoring_rate = 1.0 - np.mean(event)
+    if censoring_rate > 0.95:
+        warnings.warn(
+            f"Very high censoring rate ({censoring_rate:.1%}). "
+            "Model performance and metric reliability may be poor.",
+            UserWarning,
+            stacklevel=2,
+        )
+    elif censoring_rate < 0.05:
+        warnings.warn(
+            f"Very low censoring rate ({censoring_rate:.1%}). "
+            "Consider whether a standard regression model might be more appropriate.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+
 def ensure_2d_proba(y_proba: np.ndarray) -> np.ndarray:
     """Ensure probability array is 2D ``(n_samples, n_classes)``.
 
